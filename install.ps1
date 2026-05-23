@@ -109,7 +109,8 @@ function Test-NvidiaGpuPresent {
 if (Test-NvidiaGpuPresent) {
     Write-Step "NVIDIA GPU detected -- installing CUDA 12 runtime libraries"
     Write-Host "    (cublas / cudnn / cuda-runtime, ~500 MB; required for GPU transcription)" -ForegroundColor DarkGray
-    & $venvPython -m pip install --disable-pip-version-check --quiet `
+    Write-Host "    pip progress bar follows -- this step can take 3-8 minutes" -ForegroundColor DarkGray
+    & $venvPython -m pip install --disable-pip-version-check `
         nvidia-cuda-runtime-cu12 `
         nvidia-cublas-cu12 `
         nvidia-cudnn-cu12
