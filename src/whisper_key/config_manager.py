@@ -1,4 +1,5 @@
 import os
+import sys
 import copy
 import logging
 from typing import Dict, Any, Optional
@@ -10,6 +11,17 @@ from .utils import resolve_asset_path, beautify_hotkey, get_user_app_data_path, 
 from .platform import IS_MACOS
 
 REPO_URL = "https://github.com/PinW/whisper-key-local"
+
+
+def _configure_unicode_output():
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="replace")
+
+
+_configure_unicode_output()
 
 
 def _build_settings_header():
@@ -268,6 +280,10 @@ class ConfigManager:
             if command_hotkey:
                 print(f"   [{beautify_hotkey(command_hotkey)}] for voice commands")
 
+        meeting_hotkey = self.config['hotkey'].get('meeting_hotkey')
+        if meeting_hotkey:
+            print(f"   [{beautify_hotkey(meeting_hotkey)}] for meeting listener")
+
     def print_command_stop_instructions(self):
         stop_key = self._get_stop_key_display()
         auto_send_key = self.config['hotkey'].get('auto_send_key', '')
@@ -312,6 +328,12 @@ class ConfigManager:
 
     def get_streaming_config(self) -> Dict[str, Any]:
         return self.config.get('streaming', {}).copy()
+
+    def get_capture_config(self) -> Dict[str, Any]:
+        return self.config.get('capture', {}).copy()
+
+    def get_meeting_capture_config(self) -> Dict[str, Any]:
+        return self.config.get('capture', {}).get('meeting', {}).copy()
 
     def get_log_file_path(self) -> str:
         log_filename = self.config['logging']['file']['filename']
@@ -412,6 +434,16 @@ def validate_config(config, default_config, logger):
     recording_mode = _get_config_value_at_path(config, 'hotkey.recording_mode')
     if recording_mode not in ('toggle', 'push_to_talk'):
         _set_to_default(config, default_config, 'hotkey.recording_mode', recording_mode, logger)
+
+    capture_mode = _get_config_value_at_path(config, 'capture.mode')
+    if capture_mode not in ('dictation', 'meeting'):
+        _set_to_default(config, default_config, 'capture.mode', capture_mode, logger)
+
+    _validate_numeric_range(config, default_config, 'capture.meeting.split_on_pause_seconds', logger, min_val=0.0, max_val=60.0)
+
+    system_audio_backend = _get_config_value_at_path(config, 'capture.meeting.system_audio_backend')
+    if system_audio_backend not in ('auto', 'soundcard'):
+        _set_to_default(config, default_config, 'capture.meeting.system_audio_backend', system_audio_backend, logger)
 
     stop_key = _get_config_value_at_path(config, 'hotkey.stop_key')
     auto_send_key = _get_config_value_at_path(config, 'hotkey.auto_send_key')

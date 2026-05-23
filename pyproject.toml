@@ -20,6 +20,7 @@ dependencies = [
     "soxr>=0.3.0",
     "sherpa-onnx>=1.11.3",
     "sounddevice>=0.4.6",
+    "soundcard>=0.4.3; sys_platform=='win32'",  # optional WASAPI loopback for meeting listener mode
     "pyperclip>=1.8.2",
     "ruamel.yaml>=0.18.14",
     "pystray>=0.19.5",

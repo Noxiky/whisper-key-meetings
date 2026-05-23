@@ -11,16 +11,16 @@
 whisper: # Whisper AI Model Settings
     # Model selection
     # See "models" below for more information
-    model: tiny
+    model: large-v3-turbo
 
     # Transcription device
     # Options: cpu, cuda (for both NVIDIA and AMD)
     # For GPU setup, see https://github.com/PinW/whisper-key-local/blob/master/docs/gpu-setup.md
-    device: cpu
+    device: cuda
 
     # Compute Precision
     # Options: int8, float16, float32
-    compute_type: int8
+    compute_type: float16
 
     # Language detection
     # Options: auto (auto-detect), en, es, fr, de, etc.
@@ -31,7 +31,7 @@ whisper: # Whisper AI Model Settings
     beam_size: 5 # Higher = more accurate but slower (1-10)
 
     # Initial prompt to guide transcription style, language variant, or script
-    initial_prompt: ""
+    initial_prompt: "Dictation may be in English, Spanish, or Russian. Preserve the spoken language and punctuation naturally."
 
     # Custom hotwords — words the model should favor during transcription
     # Useful for names, technical terms, or domain-specific vocabulary
@@ -160,6 +160,30 @@ hotkey: # Hotkey Configuration
     # Key combination for voice command mode
     # Records speech and matches against user-defined commands
     command_hotkey: "alt+win | macos: fn+command"
+
+    # Meeting listener toggle hotkey
+    # Single key on purpose: avoids modifier-superset collisions with recording_hotkey/command_hotkey
+    meeting_hotkey: "f9"
+
+capture: # Capture Mode Settings
+    # Default dictation path remains unchanged. Meeting mode is toggled by meeting_hotkey.
+    mode: dictation # dictation | meeting
+
+    meeting:
+        split_on_pause_seconds: 1.2
+        capture_microphone: true
+        capture_system_audio: true
+        # auto currently uses SoundCard when available for Windows loopback capture
+        system_audio_backend: auto # auto | soundcard
+        # Which output device to capture for [SYS] track.
+        # "default" = Windows default playback device
+        # Any other value = substring match against speaker name (case-insensitive)
+        # Example: "LS32DG30X" or "Razer" or "Oculus"
+        # When recording fails to pick up audio, set this to the device actually playing the audio
+        system_audio_device: default
+        # Auto-stop the meeting after this many seconds of no audio detected on any source.
+        # 0 disables auto-stop.
+        auto_stop_silence_seconds: 120
 
 vad: # Voice Activity Detection (VAD)
     # Voice Activity Detection (VAD) Pre-check

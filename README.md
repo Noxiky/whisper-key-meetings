@@ -1,11 +1,33 @@
-# Whisper Key - Local Speech-to-Text
+# Whisper Key Meetings
 
-Global hotkeys to record speech and transcribe directly to your cursor. 
+> A meeting-mode fork of [**PinW/whisper-key-local**](https://github.com/PinW/whisper-key-local) — all upstream functionality preserved, plus a live dual-track meeting transcription mode. Original work © 2025 Pin Wang, MIT-licensed. This fork remains MIT under the same terms (see [LICENSE](LICENSE)).
 
-> Questions or ideas? [Discord](https://discord.gg/uZnXV8snhz)
+Global hotkeys to record speech and transcribe directly to your cursor, **plus a meeting listener that transcribes microphone + computer audio in real time to your console** (press `F9`).
+
+> Questions or ideas? [Discord](https://discord.gg/uZnXV8snhz) (upstream community)
+
+## 🎧 Meeting Listener Mode (this fork)
+
+Press **`F9`** to toggle a live meeting transcription. Captures your microphone and your PC's system audio (Windows WASAPI loopback) on independent tracks, transcribes each with `faster-whisper`, and prints labeled lines to the terminal in real time:
+
+```
+[MIC] What's the agenda for today?
+[SYS] Welcome to the all-hands meeting.
+[MIC] Got it, ready when you are.
+```
+
+- **Independent tracks** — `[MIC]` for your microphone, `[SYS]` for whatever's playing through your default Windows playback device (YouTube, Zoom, Spotify…).
+- **No file output** — pure live console transcription. Nothing saved to disk.
+- **Silence-segmented + queued** — segments flush on ≥0.8s pauses (or a 15s safety cap), pushed to a background transcription worker so capture never blocks.
+- **Hallucination filter** — strips common whisper-on-silence artifacts (`"Transcription by CastingWords"`, lone `.`, `"Thanks for watching"`, etc.).
+- **Per-device override** — set `capture.meeting.system_audio_device: "<substring>"` in `user_settings.yaml` if your default playback device isn't the one with the audio you want.
+- **Auto-stop** — meeting ends automatically after `auto_stop_silence_seconds` (default 120) of no audio on either source.
+
+All other dictation / voice-command functionality from the upstream README below is unchanged.
 
 ## ✨ Features
 
+- **Meeting Listener (new)**: F9 toggles live dual-track [MIC]/[SYS] console transcription
 - **Global Hotkey**: Start recording speech from any app
 - **Auto-Paste**: Transcribe directly to cursor
 - **Auto-Send**: Optionally auto-send with ENTER keypress
@@ -55,6 +77,7 @@ python whisper-key.py
 | Stop & auto-send | `Alt` | `Option` |
 | Cancel recording | `Esc` | `Shift` |
 | Voice command mode | `Alt+Win` | `Fn+Command` |
+| **Meeting listener toggle** | **`F9`** | **`F9`** |
 
 Open the system tray / menu bar icon to:
 - Toggle auto-paste vs clipboard-only

@@ -15,6 +15,8 @@ from .audio_feedback import AudioFeedback
 from .utils import OptionalComponent
 from .voice_activity_detection import VadEvent, VadManager
 from .voice_commands import VoiceCommandManager
+from .meeting_recorder import MeetingRecorder
+from .meeting_live_transcriber import MeetingLiveTranscriber
 
 class StateManager:
     def __init__(self,
@@ -25,7 +27,9 @@ class StateManager:
                  vad_manager: VadManager,
                  system_tray: Optional[SystemTray] = None,
                  audio_feedback: Optional[AudioFeedback] = None,
-                 voice_command_manager: Optional[VoiceCommandManager] = None):
+                 voice_command_manager: Optional[VoiceCommandManager] = None,
+                 meeting_recorder: Optional[MeetingRecorder] = None,
+                 meeting_live_transcriber: Optional[MeetingLiveTranscriber] = None):
 
         self.audio_recorder = audio_recorder
         self.whisper_engine = whisper_engine
@@ -35,6 +39,10 @@ class StateManager:
         self.audio_feedback = OptionalComponent(audio_feedback)
         self.vad_manager = vad_manager
         self.voice_command_manager = voice_command_manager
+        self.meeting_recorder = meeting_recorder
+        self.meeting_live_transcriber = meeting_live_transcriber
+        if self.meeting_live_transcriber:
+            self.meeting_live_transcriber.set_silence_timeout_callback(self._handle_meeting_silence_timeout)
 
         self.is_processing = False
         self.is_model_loading = False
@@ -228,6 +236,7 @@ class StateManager:
     def get_application_state(self) -> dict:
         status = {
             "recording": self.audio_recorder.get_recording_status(),
+            "meeting_recording": bool(self.meeting_recorder and self.meeting_recorder.get_recording_status()),
             "processing": self.is_processing,
             "model_loading": self.is_model_loading,
         }
@@ -255,6 +264,8 @@ class StateManager:
 
         if self.audio_recorder.get_recording_status():
             self.audio_recorder.stop_recording()
+        if self.meeting_recorder and self.meeting_recorder.get_recording_status():
+            self.meeting_recorder.cancel_recording()
         
         self.system_tray.stop()
     
@@ -272,9 +283,77 @@ class StateManager:
     def is_transcription_recording(self) -> bool:
         return self.audio_recorder.get_recording_status() and not self._command_mode
 
+    def _handle_meeting_silence_timeout(self, threshold_seconds: float) -> None:
+        if not self.meeting_recorder or not self.meeting_recorder.get_recording_status():
+            return
+        print(
+            f"\n⏰ Stopping meeting listener after {int(threshold_seconds)}s of silence on both sources...",
+            flush=True,
+        )
+        threading.Thread(target=self.stop_meeting_recording, daemon=True).start()
+
+    def toggle_meeting_recording(self) -> bool:
+        if not self.meeting_recorder or not self.meeting_live_transcriber:
+            print("❌ Meeting listener is not configured")
+            return False
+
+        if self.meeting_recorder.get_recording_status():
+            return self.stop_meeting_recording()
+        return self.start_meeting_recording()
+
+    def start_meeting_recording(self) -> bool:
+        if not self.meeting_recorder:
+            print("❌ Meeting listener is not configured")
+            return False
+        if not self.can_start_recording():
+            print(f"⏳ Cannot start meeting listener while {self.get_current_state()}...")
+            return False
+
+        if self.meeting_live_transcriber:
+            self.meeting_live_transcriber.start()
+        success = self.meeting_recorder.start_recording()
+        if success:
+            print("\n📝 Meeting listener started! Live transcript will appear below.")
+            print("   [MIC] = your microphone   [SYS] = computer audio")
+            print("   Press the meeting hotkey again to stop.\n")
+            self.audio_feedback.play_start_sound()
+            self.system_tray.update_state("meeting")
+        elif self.meeting_live_transcriber:
+            self.meeting_live_transcriber.stop()
+        return success
+
+    def stop_meeting_recording(self) -> bool:
+        if not self.meeting_recorder or not self.meeting_recorder.get_recording_status():
+            return False
+
+        try:
+            with self._state_lock:
+                self.is_processing = True
+            self.audio_feedback.play_stop_sound()
+            self.system_tray.update_state("processing")
+            session = self.meeting_recorder.stop_recording()
+            if self.meeting_live_transcriber:
+                self.meeting_live_transcriber.stop()
+            if not session:
+                print("   ✗ No meeting audio captured")
+                return False
+
+            print(f"\n   ✓ Meeting ended ({session.duration_seconds:.1f}s captured)")
+            self.audio_feedback.play_transcription_complete_sound()
+            return True
+        except Exception as e:
+            self.logger.error(f"Error in meeting listener workflow: {e}")
+            print(f"❌ Error processing meeting recording: {e}")
+            return False
+        finally:
+            with self._state_lock:
+                self.is_processing = False
+            self.system_tray.update_state("idle")
+
     def can_start_recording(self) -> bool:
         with self._state_lock:
-            return not (self.is_processing or self.is_model_loading or self.audio_recorder.get_recording_status())
+            meeting_active = bool(self.meeting_recorder and self.meeting_recorder.get_recording_status())
+            return not (self.is_processing or self.is_model_loading or self.audio_recorder.get_recording_status() or meeting_active)
     
     def get_current_state(self) -> str:
         with self._state_lock:
@@ -284,6 +363,8 @@ class StateManager:
                 return "processing"
             elif self.audio_recorder.get_recording_status():
                 return "recording"
+            elif self.meeting_recorder and self.meeting_recorder.get_recording_status():
+                return "meeting"
             else:
                 return "idle"
     

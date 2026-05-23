@@ -54,12 +54,26 @@ def resolve_asset_path(relative_path: str) -> str:
     return str(Path(__file__).parent / relative_path)
 
 def setup_portaudio_path():
-    # Called first in main.py - platform module imports break WASAPI
     if sys.platform != 'win32':
         return
+
+    path_entries = []
     assets_dir = Path(resolve_asset_path('platform/windows/assets'))
     if assets_dir.exists():
-        os.environ['PATH'] = str(assets_dir) + os.pathsep + os.environ.get('PATH', '')
+        path_entries.append(assets_dir)
+
+    site_packages = Path(sys.prefix) / 'Lib' / 'site-packages'
+    nvidia_root = site_packages / 'nvidia'
+    if nvidia_root.exists():
+        for package_name in ('cublas', 'cuda_runtime', 'cuda_nvrtc', 'cudnn'):
+            bin_dir = nvidia_root / package_name / 'bin'
+            if bin_dir.exists():
+                path_entries.append(bin_dir)
+                if hasattr(os, 'add_dll_directory'):
+                    os.add_dll_directory(str(bin_dir))
+
+    if path_entries:
+        os.environ['PATH'] = os.pathsep.join(str(p) for p in path_entries) + os.pathsep + os.environ.get('PATH', '')
 
 def restart_or_exit(message_restart, message_exit):
     pyapp_exe = os.environ.get('PYAPP', '')

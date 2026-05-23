@@ -20,6 +20,9 @@ from .clipboard_manager import ClipboardManager
 from .state_manager import StateManager
 from .system_tray import SystemTray
 from .audio_feedback import AudioFeedback
+from .meeting_recorder import MeetingRecorder
+from .meeting_live_transcriber import MeetingLiveTranscriber
+
 from .instance_manager import guard_against_multiple_instances
 from .model_registry import ModelRegistry
 from .streaming_manager import StreamingManager
@@ -187,6 +190,7 @@ def setup_hotkey_listener(hotkey_config, state_manager, voice_commands_enabled=T
         auto_send_key=hotkey_config.get('auto_send_key'),
         cancel_combination=hotkey_config.get('cancel_combination'),
         command_hotkey=hotkey_config.get('command_hotkey') if voice_commands_enabled else None,
+        meeting_hotkey=hotkey_config.get('meeting_hotkey'),
         recording_mode=hotkey_config.get('recording_mode', 'toggle')
     )
 
@@ -259,6 +263,11 @@ def main():
         clipboard_manager = setup_clipboard_manager(clipboard_config)
         audio_feedback = setup_audio_feedback(audio_feedback_config)
         voice_command_manager = setup_voice_commands(voice_commands_config, clipboard_manager, log_transcriptions)
+        meeting_capture_config = config_manager.get_meeting_capture_config()
+        meeting_live_transcriber = MeetingLiveTranscriber(
+            whisper_engine=whisper_engine,
+            auto_stop_silence_seconds=meeting_capture_config.get('auto_stop_silence_seconds', 0),
+        )
 
         state_manager = StateManager(
             audio_recorder=None,
@@ -268,8 +277,15 @@ def main():
             config_manager=config_manager,
             audio_feedback=audio_feedback,
             vad_manager=vad_manager,
-            voice_command_manager=voice_command_manager
+            voice_command_manager=voice_command_manager,
+            meeting_recorder=MeetingRecorder(
+                config=config_manager.get_meeting_capture_config(),
+                audio_config=audio_config,
+                live_transcriber=meeting_live_transcriber,
+            ),
+            meeting_live_transcriber=meeting_live_transcriber,
         )
+
         audio_recorder = setup_audio_recorder(audio_config, state_manager, vad_manager, streaming_manager)
         system_tray = setup_system_tray(tray_config, config_manager, state_manager, model_registry, console_config)
         state_manager.attach_components(audio_recorder, system_tray)

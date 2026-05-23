@@ -6,13 +6,15 @@ from .state_manager import StateManager
 class HotkeyListener:
     def __init__(self, state_manager: StateManager, recording_hotkey: str, stop_key: str,
                  auto_send_key: str = None, cancel_combination: str = None,
-                 command_hotkey: str = None, recording_mode: str = "toggle"):
+                 command_hotkey: str = None, meeting_hotkey: str = None,
+                 recording_mode: str = "toggle"):
         self.state_manager = state_manager
         self.recording_hotkey = recording_hotkey
         self.stop_key = stop_key
         self.auto_send_key = auto_send_key
         self.cancel_combination = cancel_combination
         self.command_hotkey = command_hotkey
+        self.meeting_hotkey = meeting_hotkey
         self.recording_mode = recording_mode
         self.keys_armed = True
         self.is_listening = False
@@ -77,6 +79,14 @@ class HotkeyListener:
                     'name': 'command'
                 })
 
+        if self.meeting_hotkey:
+            hotkey_configs.append({
+                'combination': self.meeting_hotkey,
+                'callback': self._meeting_hotkey_pressed,
+                'release_callback': self._arm_keys_on_release,
+                'name': 'meeting listener'
+            })
+
         hotkey_configs.sort(key=self._get_hotkey_combination_specificity, reverse=True)
 
         self.hotkey_bindings = []
@@ -138,6 +148,11 @@ class HotkeyListener:
         self.keys_armed = False
         self.state_manager.start_command_recording()
 
+    def _meeting_hotkey_pressed(self):
+        self.logger.info(f"Meeting hotkey pressed: {self.meeting_hotkey}")
+        self.keys_armed = False
+        self.state_manager.toggle_meeting_recording()
+
     def _arm_keys_on_release(self):
         self.logger.debug("Key released - arming stop/auto-send keys")
         self.keys_armed = True
@@ -168,7 +183,7 @@ class HotkeyListener:
             self.logger.error(f"Error stopping hotkey listener: {e}")
 
     def change_hotkey_config(self, setting: str, value):
-        valid_settings = ['recording_hotkey', 'stop_key', 'auto_send_key', 'cancel_combination', 'command_hotkey', 'recording_mode']
+        valid_settings = ['recording_hotkey', 'stop_key', 'auto_send_key', 'cancel_combination', 'command_hotkey', 'meeting_hotkey', 'recording_mode']
 
         if setting not in valid_settings:
             raise ValueError(f"Invalid setting '{setting}'. Valid options: {valid_settings}")

@@ -1,20 +1,24 @@
 import logging
 import os
 import signal
-from typing import Optional, TYPE_CHECKING
+import threading
+import time
+from typing import Any, Optional, TYPE_CHECKING
 from pathlib import Path
 
 from .utils import open_file
 from .platform import permissions, icons, console
+from .floating_overlay import FloatingOverlay
 
 try:
     import pystray
-    from PIL import Image
+    from PIL import Image, ImageDraw
     TRAY_AVAILABLE = True
 except ImportError:
     TRAY_AVAILABLE = False
     pystray = None
     Image = None
+    ImageDraw = None
 
 if TYPE_CHECKING:
     from .state_manager import StateManager
@@ -35,10 +39,14 @@ class SystemTray:
         self.console_config = console_config or {}
         self.logger = logging.getLogger(__name__)
                
-        self.icon = None  # pystray object, holds menu, state, etc.
+        self.icon = None
+        self.overlay = None
         self.is_running = False
         self.current_state = "idle"
         self.available = True
+        self._pulse_thread = None
+        self._pulse_stop = threading.Event()
+        self._animated_icons = {}
         
         if self._check_tray_availability():
             self._load_icons_to_cache()
@@ -64,7 +72,98 @@ class SystemTray:
                 "recording": self._create_fallback_icon("recording"),
                 "processing": self._create_fallback_icon("processing"),
             }
+        self._animated_icons = self._build_animated_icons()
         
+    def _build_animated_icons(self):
+        animated = {}
+        for state in ("recording", "processing"):
+            base_icon = self.icons.get(state) or self.icons.get("idle")
+            animated[state] = self._create_pulse_frames(base_icon, state)
+        animated["meeting"] = animated["recording"]
+        return animated
+
+    def _create_pulse_frames(self, base_icon: Any, state: str) -> list:
+        if Image is None or ImageDraw is None:
+            return [base_icon]
+
+        colors = {
+            "recording": (40, 220, 100),
+            "processing": (255, 176, 48),
+        }
+        accent = colors.get(state, (255, 255, 255))
+        frames = []
+        size = max(base_icon.size)
+        scale = max(1, size // 32)
+        wave_patterns = (
+            (1, 2, 1),
+            (2, 3, 2),
+            (3, 4, 3),
+            (2, 5, 2),
+            (3, 4, 3),
+            (2, 3, 2),
+        )
+
+        for frame_index, pattern in enumerate(wave_patterns):
+            frame = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+            mic = base_icon.convert("RGBA")
+            if mic.size != (size, size):
+                mic = mic.resize((size, size), Image.NEAREST)
+            frame.alpha_composite(mic, (0, 0))
+            draw = ImageDraw.Draw(frame)
+
+            for side in (-1, 1):
+                anchor_x = size // 2 + side * int(size * 0.38)
+                for idx, height_units in enumerate(pattern):
+                    bar_height = height_units * scale * 2
+                    bar_width = max(1, scale)
+                    gap = idx * scale * 2
+                    x0 = anchor_x + side * gap
+                    if side < 0:
+                        x0 -= bar_width
+                    y0 = size // 2 - bar_height // 2
+                    y1 = size // 2 + bar_height // 2
+                    draw.rectangle(
+                        (x0, y0, x0 + bar_width - 1, y1),
+                        fill=accent + (180 - idx * 30,),
+                    )
+
+            if state == "processing":
+                sparkle = [
+                    (int(size * 0.76), int(size * 0.18)),
+                    (int(size * 0.80), int(size * 0.22)),
+                    (int(size * 0.74), int(size * 0.25)),
+                ][frame_index % 3]
+                draw.rectangle(
+                    (sparkle[0], sparkle[1], sparkle[0] + scale, sparkle[1] + scale),
+                    fill=accent + (230,),
+                )
+
+            frames.append(frame)
+        return frames
+
+    def _start_pulse_animation(self, state: str):
+        if state not in self._animated_icons:
+            return
+        if self._pulse_thread and self._pulse_thread.is_alive():
+            return
+        self._pulse_stop.clear()
+
+        def animate():
+            frame_index = 0
+            while not self._pulse_stop.is_set() and self.current_state in self._animated_icons:
+                frames = self._animated_icons.get(self.current_state) or []
+                if frames and self.icon:
+                    self.icon.icon = frames[frame_index % len(frames)]
+                    frame_index += 1
+                time.sleep(0.18)
+
+        self._pulse_thread = threading.Thread(target=animate, daemon=True)
+        self._pulse_thread.start()
+
+    def _stop_pulse_animation(self):
+        self._pulse_stop.set()
+        self._pulse_thread = None
+    
     def _create_fallback_icon(self, state: str) -> Image.Image:
         colors = {
             'idle': (128, 128, 128),      # Gray
@@ -306,6 +405,9 @@ class SystemTray:
 
     def _quit_application_from_tray(self, icon=None, item=None):        
         os.kill(os.getpid(), signal.SIGINT)
+
+    def _quit_application_from_overlay(self):
+        os.kill(os.getpid(), signal.SIGINT)
     
     def update_state(self, new_state: str):
         if not TRAY_AVAILABLE or not self.is_running:
@@ -314,7 +416,15 @@ class SystemTray:
         self.current_state = new_state
         
         try:
-            self.icon.icon = self.icons[new_state]
+            if self.overlay:
+                self.overlay.update_state(new_state)
+
+            if new_state in self._animated_icons:
+                self._start_pulse_animation(new_state)
+            else:
+                self._stop_pulse_animation()
+                if self.icon:
+                    self.icon.icon = self.icons[new_state]
             self.icon.menu = self._create_menu()
         except Exception as e:
             self.logger.error(f"Failed to update tray icon: {e}")
@@ -349,8 +459,17 @@ class SystemTray:
 
             self.icon.run_detached()
 
+            self.overlay = FloatingOverlay(
+                icons=self.icons,
+                animated_icons=self._animated_icons,
+                on_close=self._quit_application_from_overlay,
+                logger=self.logger,
+            )
+            self.overlay.start()
+
             self.is_running = True
             print("   ✓ System tray icon is running...")
+            print("   ✓ Floating status overlay is visible...")
 
             return True
 
@@ -363,6 +482,9 @@ class SystemTray:
             return
 
         try:
+            self._stop_pulse_animation()
+            if self.overlay:
+                self.overlay.stop()
             self.icon.stop()
             self.is_running = False
 
