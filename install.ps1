@@ -94,6 +94,23 @@ Write-Step "Installing dependencies (takes 2-5 minutes the first time)"
 & $venvPython -m pip install -e . --disable-pip-version-check --quiet
 Write-OK "dependencies installed"
 
+Write-Step "Creating Desktop shortcut"
+try {
+    $launcher = Join-Path $INSTALL_DIR "run-whisper-key.cmd"
+    $iconPath = Join-Path $INSTALL_DIR "src\whisper_key\platform\windows\assets\whisperkey-icon.ico"
+    $shortcutPath = Join-Path ([Environment]::GetFolderPath('Desktop')) "Whisper Key Meetings.lnk"
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($shortcutPath)
+    $shortcut.TargetPath = $launcher
+    $shortcut.WorkingDirectory = $INSTALL_DIR
+    $shortcut.Description = "Whisper Key Meetings - local speech-to-text + live meeting transcription"
+    if (Test-Path $iconPath) { $shortcut.IconLocation = $iconPath }
+    $shortcut.Save()
+    Write-OK "shortcut: $shortcutPath"
+} catch {
+    Write-Warn "Could not create Desktop shortcut: $_"
+}
+
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Green
 Write-Host "  Whisper Key Meetings installed" -ForegroundColor Green
