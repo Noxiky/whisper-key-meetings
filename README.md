@@ -25,6 +25,30 @@ Press **`F9`** to toggle a live meeting transcription. Captures your microphone 
 
 All other dictation / voice-command functionality from the upstream README below is unchanged.
 
+## 🚀 One-paste install (Windows)
+
+Open PowerShell and paste:
+
+```powershell
+irm https://raw.githubusercontent.com/Noxiky/whisper-key-meetings/main/install.ps1 | iex
+```
+
+That checks for `git` + Python 3.11–3.13, clones the repo to `%USERPROFILE%\whisper-key-meetings`, builds a `.venv`, and installs all dependencies. Re-running pulls the latest changes.
+
+Optional overrides (set **before** the `irm | iex` line):
+
+```powershell
+$env:WKM_INSTALL_DIR = "D:\apps\wkm"   # install somewhere else
+$env:WKM_NO_LAUNCH   = "1"             # don't ask to launch at the end
+```
+
+After install, launch any time with:
+
+```powershell
+cd $env:USERPROFILE\whisper-key-meetings
+.\run-whisper-key.cmd
+```
+
 ## ✨ Features
 
 - **Meeting Listener (new)**: F9 toggles live dual-track [MIC]/[SYS] console transcription
