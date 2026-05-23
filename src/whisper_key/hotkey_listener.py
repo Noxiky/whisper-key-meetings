@@ -1,7 +1,10 @@
 import logging
+import time
 
 from .platform import hotkeys
 from .state_manager import StateManager
+
+POST_STOP_COOLDOWN_SECONDS = 0.6
 
 class HotkeyListener:
     def __init__(self, state_manager: StateManager, recording_hotkey: str, stop_key: str,
@@ -18,6 +21,7 @@ class HotkeyListener:
         self.recording_mode = recording_mode
         self.keys_armed = True
         self.is_listening = False
+        self._last_stop_at = 0.0
         self.logger = logging.getLogger(__name__)
 
         self._setup_hotkeys()
@@ -107,8 +111,22 @@ class HotkeyListener:
         return len(combination.split('+'))
 
     def _standard_hotkey_pressed(self):
-        self.logger.info(f"Standard hotkey pressed: {self.recording_hotkey}")
+        if time.monotonic() - self._last_stop_at < POST_STOP_COOLDOWN_SECONDS:
+            self.logger.debug("Standard hotkey ignored - within post-stop cooldown")
+            return
+
         self.keys_armed = False
+
+        recorder = getattr(self.state_manager, "audio_recorder", None)
+        currently_recording = bool(recorder and recorder.get_recording_status())
+
+        if self.recording_mode != "push_to_talk" and currently_recording:
+            self.logger.info(f"Standard hotkey pressed (toggle stop): {self.recording_hotkey}")
+            self._last_stop_at = time.monotonic()
+            self.state_manager.stop_recording()
+            return
+
+        self.logger.info(f"Standard hotkey pressed (start): {self.recording_hotkey}")
         self.state_manager.start_recording()
 
     def _push_to_talk_released(self):
@@ -120,6 +138,7 @@ class HotkeyListener:
 
         if self.keys_armed:
             self.logger.info(f"Stop key activated: {self.stop_key}")
+            self._last_stop_at = time.monotonic()
             self.state_manager.stop_recording()
         else:
             self.logger.debug("Stop key ignored - waiting for key release first")
