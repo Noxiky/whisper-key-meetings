@@ -45,6 +45,21 @@ irm https://raw.githubusercontent.com/Noxiky/whisper-key-meetings/main/doctor.ps
 
 It prints colored `[ok]` / `[warn]` / `[XX]` lines for: PowerShell version, git, Python, internet to PyPI / GitHub / pythonhosted, disk space, NVIDIA GPU detection, and — if you already installed — whether the venv is valid and CUDA DLLs are present. Exit 0 if all green, 1 if anything failed.
 
+### Uninstall
+
+```powershell
+irm https://raw.githubusercontent.com/Noxiky/whisper-key-meetings/main/uninstall.ps1 | iex
+```
+
+Removes the install dir and the Desktop shortcut. By default it **keeps** your user settings (`%APPDATA%\whisperkey`) and the downloaded whisper models (`~\.cache\huggingface\hub`, can be several GB). To purge those too, set the relevant env vars first:
+
+```powershell
+$env:WKM_PURGE_CONFIG = "1"
+$env:WKM_PURGE_MODELS = "1"
+$env:WKM_YES          = "1"   # skip the confirmation prompt
+irm https://raw.githubusercontent.com/Noxiky/whisper-key-meetings/main/uninstall.ps1 | iex
+```
+
 Optional overrides (set **before** the `irm | iex` line):
 
 ```powershell

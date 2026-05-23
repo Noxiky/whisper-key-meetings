@@ -236,6 +236,25 @@ if (Test-NvidiaGpuPresent) {
         Write-Warn "CUDA: cublas64_12.dll NOT present -- GPU mode will error. Re-run the CUDA install or it falls back to CPU."
         $verifyOk = $false
     }
+
+    Write-Host "    running GPU load test (downloads ~75 MB tiny model, ~30s)..." -ForegroundColor DarkGray
+    $gpuTest = @"
+import sys, numpy as np
+from faster_whisper import WhisperModel
+m = WhisperModel('tiny', device='cuda', compute_type='float16')
+segments, _ = m.transcribe(np.zeros(16000, dtype=np.float32))
+list(segments)
+print('gpu_load_ok')
+"@
+    $gpuOut = & $venvPython -c $gpuTest 2>&1 | Out-String
+    if ($gpuOut -match "gpu_load_ok") {
+        Write-OK "GPU: tiny model loaded and transcribed on CUDA"
+    } else {
+        Write-Warn "GPU load test failed -- the app will fall back to CPU when needed."
+        $firstErr = ($gpuOut -split "`n" | Where-Object { $_ -match "Error|error|Exception" } | Select-Object -First 1)
+        if ($firstErr) { Write-Warn ("error: " + $firstErr.Trim()) }
+        $verifyOk = $false
+    }
 }
 
 # ----- desktop shortcut ---------------------------------------------------
