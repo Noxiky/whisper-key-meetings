@@ -94,6 +94,34 @@ Write-Step "Installing dependencies (takes 2-5 minutes the first time)"
 & $venvPython -m pip install -e . --disable-pip-version-check --quiet
 Write-OK "dependencies installed"
 
+function Test-NvidiaGpuPresent {
+    if (-not (Get-Command nvidia-smi -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+    try {
+        $null = & nvidia-smi --query-gpu=name --format=csv,noheader 2>$null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
+if (Test-NvidiaGpuPresent) {
+    Write-Step "NVIDIA GPU detected -- installing CUDA 12 runtime libraries"
+    Write-Host "    (cublas / cudnn / cuda-runtime, ~500 MB; required for GPU transcription)" -ForegroundColor DarkGray
+    & $venvPython -m pip install --disable-pip-version-check --quiet `
+        nvidia-cuda-runtime-cu12 `
+        nvidia-cublas-cu12 `
+        nvidia-cudnn-cu12
+    if ($LASTEXITCODE -eq 0) {
+        Write-OK "CUDA libraries installed"
+    } else {
+        Write-Warn "CUDA library install returned non-zero. Whisper will fall back to CPU."
+    }
+} else {
+    Write-OK "no NVIDIA GPU detected -- skipping CUDA libraries (CPU mode will be used)"
+}
+
 Write-Step "Creating Desktop shortcut"
 try {
     $launcher = Join-Path $INSTALL_DIR "run-whisper-key.cmd"
