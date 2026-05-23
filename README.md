@@ -33,7 +33,17 @@ Open PowerShell and paste:
 irm https://raw.githubusercontent.com/Noxiky/whisper-key-meetings/main/install.ps1 | iex
 ```
 
-That checks for `git` + Python 3.11–3.13, clones the repo to `%USERPROFILE%\whisper-key-meetings`, builds a `.venv`, and installs all dependencies. Re-running pulls the latest changes.
+That runs a preflight check (git, Python 3.11–3.13, PyPI reachability, disk space), clones the repo to `%USERPROFILE%\whisper-key-meetings`, builds a `.venv`, installs all dependencies, auto-installs CUDA 12 runtime libs if an NVIDIA GPU is detected, creates a Desktop shortcut, and verifies the install at the end. Re-running pulls the latest changes.
+
+### Run only the smoke test (no install)
+
+To check what would or wouldn't work on your machine *before* installing:
+
+```powershell
+irm https://raw.githubusercontent.com/Noxiky/whisper-key-meetings/main/doctor.ps1 | iex
+```
+
+It prints colored `[ok]` / `[warn]` / `[XX]` lines for: PowerShell version, git, Python, internet to PyPI / GitHub / pythonhosted, disk space, NVIDIA GPU detection, and — if you already installed — whether the venv is valid and CUDA DLLs are present. Exit 0 if all green, 1 if anything failed.
 
 Optional overrides (set **before** the `irm | iex` line):
 
