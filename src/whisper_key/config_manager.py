@@ -282,7 +282,19 @@ class ConfigManager:
 
         meeting_hotkey = self.config['hotkey'].get('meeting_hotkey')
         if meeting_hotkey:
-            print(f"   [{beautify_hotkey(meeting_hotkey)}] for meeting listener")
+            print(f"   [{beautify_hotkey(meeting_hotkey)}] for meeting listener (mic + sys, auto-stop on silence)")
+
+        meeting_continuous = self.config['hotkey'].get('meeting_continuous_hotkey')
+        if meeting_continuous:
+            print(f"   [{beautify_hotkey(meeting_continuous)}] for continuous meeting (mic + sys, infinite)")
+
+        meeting_mic_only = self.config['hotkey'].get('meeting_mic_only_hotkey')
+        if meeting_mic_only:
+            print(f"   [{beautify_hotkey(meeting_mic_only)}] for mic-only continuous meeting")
+
+        meeting_sys_only = self.config['hotkey'].get('meeting_sys_only_hotkey')
+        if meeting_sys_only:
+            print(f"   [{beautify_hotkey(meeting_sys_only)}] for system-audio-only continuous meeting")
 
     def print_command_stop_instructions(self):
         stop_key = self._get_stop_key_display()

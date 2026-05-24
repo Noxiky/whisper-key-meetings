@@ -292,16 +292,20 @@ class StateManager:
         )
         threading.Thread(target=self.stop_meeting_recording, daemon=True).start()
 
-    def toggle_meeting_recording(self) -> bool:
+    def toggle_meeting_recording(self, *, capture_microphone=None, capture_system_audio=None, auto_stop_seconds=None) -> bool:
         if not self.meeting_recorder or not self.meeting_live_transcriber:
             print("❌ Meeting listener is not configured")
             return False
 
         if self.meeting_recorder.get_recording_status():
             return self.stop_meeting_recording()
-        return self.start_meeting_recording()
+        return self.start_meeting_recording(
+            capture_microphone=capture_microphone,
+            capture_system_audio=capture_system_audio,
+            auto_stop_seconds=auto_stop_seconds,
+        )
 
-    def start_meeting_recording(self) -> bool:
+    def start_meeting_recording(self, *, capture_microphone=None, capture_system_audio=None, auto_stop_seconds=None) -> bool:
         if not self.meeting_recorder:
             print("❌ Meeting listener is not configured")
             return False
@@ -309,18 +313,49 @@ class StateManager:
             print(f"⏳ Cannot start meeting listener while {self.get_current_state()}...")
             return False
 
+        meeting_cfg = self.config_manager.get_meeting_capture_config()
+        use_mic = capture_microphone if capture_microphone is not None else bool(meeting_cfg.get("capture_microphone", True))
+        use_sys = capture_system_audio if capture_system_audio is not None else bool(meeting_cfg.get("capture_system_audio", True))
+        active_sources = []
+        if use_mic:
+            active_sources.append("mic")
+        if use_sys:
+            active_sources.append("system")
+
         if self.meeting_live_transcriber:
-            self.meeting_live_transcriber.start()
-        success = self.meeting_recorder.start_recording()
+            self.meeting_live_transcriber.start(
+                auto_stop_seconds=auto_stop_seconds,
+                active_sources=active_sources,
+            )
+        success = self.meeting_recorder.start_recording(
+            capture_microphone=use_mic,
+            capture_system_audio=use_sys,
+        )
         if success:
-            print("\n📝 Meeting listener started! Live transcript will appear below.")
-            print("   [MIC] = your microphone   [SYS] = computer audio")
+            mode_tag = self._format_meeting_mode(use_mic, use_sys, auto_stop_seconds)
+            print(f"\n📝 Meeting listener started{mode_tag}")
+            sources = []
+            if use_mic:
+                sources.append("[MIC] microphone")
+            if use_sys:
+                sources.append("[SYS] computer audio")
+            print(f"   Capturing: {'  '.join(sources)}")
             print("   Press the meeting hotkey again to stop.\n")
             self.audio_feedback.play_start_sound()
             self.system_tray.update_state("meeting")
         elif self.meeting_live_transcriber:
             self.meeting_live_transcriber.stop()
         return success
+
+    def _format_meeting_mode(self, use_mic, use_sys, auto_stop) -> str:
+        parts = []
+        if use_mic and not use_sys:
+            parts.append("MIC-only")
+        elif use_sys and not use_mic:
+            parts.append("SYS-only")
+        if auto_stop == 0:
+            parts.append("continuous")
+        return f" [{', '.join(parts)}]" if parts else ""
 
     def stop_meeting_recording(self) -> bool:
         if not self.meeting_recorder or not self.meeting_recorder.get_recording_status():

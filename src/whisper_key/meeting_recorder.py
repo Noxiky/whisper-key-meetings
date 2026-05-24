@@ -51,12 +51,10 @@ class MeetingRecorder:
         self._system_samples_captured: int = 0
 
         if self.live_transcriber:
-            if self.config.get("capture_microphone", True):
-                self.live_transcriber.register_source("mic", "MIC")
-            if self.config.get("capture_system_audio", True):
-                self.live_transcriber.register_source("system", "SYS")
+            self.live_transcriber.register_source("mic", "MIC")
+            self.live_transcriber.register_source("system", "SYS")
 
-    def start_recording(self) -> bool:
+    def start_recording(self, capture_microphone: Optional[bool] = None, capture_system_audio: Optional[bool] = None) -> bool:
         with self._lock:
             if self.is_recording:
                 return False
@@ -66,11 +64,14 @@ class MeetingRecorder:
             self._mic_samples_captured = 0
             self._system_samples_captured = 0
 
-        if self.config.get("capture_microphone", True):
+        use_mic = capture_microphone if capture_microphone is not None else self.config.get("capture_microphone", True)
+        use_sys = capture_system_audio if capture_system_audio is not None else self.config.get("capture_system_audio", True)
+
+        if use_mic:
             self._mic_thread = threading.Thread(target=self._record_microphone, daemon=True)
             self._mic_thread.start()
 
-        if self.config.get("capture_system_audio", True):
+        if use_sys:
             self._system_thread = threading.Thread(target=self._record_system_audio, daemon=True)
             self._system_thread.start()
 

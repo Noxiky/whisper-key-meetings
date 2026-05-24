@@ -161,9 +161,18 @@ hotkey: # Hotkey Configuration
     # Records speech and matches against user-defined commands
     command_hotkey: "alt+win | macos: fn+command"
 
-    # Meeting listener toggle hotkey
+    # Meeting listener toggle hotkey (default mode: mic + system, auto-stop after silence)
     # Single key on purpose: avoids modifier-superset collisions with recording_hotkey/command_hotkey
     meeting_hotkey: "f9"
+
+    # Continuous meeting (mic + system, NO auto-stop -- runs until you press it again)
+    meeting_continuous_hotkey: "f10"
+
+    # Mic-only continuous meeting (microphone only, no system audio, no auto-stop)
+    meeting_mic_only_hotkey: "f11"
+
+    # System-audio-only continuous meeting (computer audio only, no mic, no auto-stop)
+    meeting_sys_only_hotkey: "f12"
 
 capture: # Capture Mode Settings
     # Default dictation path remains unchanged. Meeting mode is toggled by meeting_hotkey.

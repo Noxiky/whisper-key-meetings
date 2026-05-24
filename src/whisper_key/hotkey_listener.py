@@ -10,6 +10,9 @@ class HotkeyListener:
     def __init__(self, state_manager: StateManager, recording_hotkey: str, stop_key: str,
                  auto_send_key: str = None, cancel_combination: str = None,
                  command_hotkey: str = None, meeting_hotkey: str = None,
+                 meeting_continuous_hotkey: str = None,
+                 meeting_mic_only_hotkey: str = None,
+                 meeting_sys_only_hotkey: str = None,
                  recording_mode: str = "toggle"):
         self.state_manager = state_manager
         self.recording_hotkey = recording_hotkey
@@ -18,6 +21,9 @@ class HotkeyListener:
         self.cancel_combination = cancel_combination
         self.command_hotkey = command_hotkey
         self.meeting_hotkey = meeting_hotkey
+        self.meeting_continuous_hotkey = meeting_continuous_hotkey
+        self.meeting_mic_only_hotkey = meeting_mic_only_hotkey
+        self.meeting_sys_only_hotkey = meeting_sys_only_hotkey
         self.recording_mode = recording_mode
         self.keys_armed = True
         self.is_listening = False
@@ -89,6 +95,30 @@ class HotkeyListener:
                 'callback': self._meeting_hotkey_pressed,
                 'release_callback': self._arm_keys_on_release,
                 'name': 'meeting listener'
+            })
+
+        if self.meeting_continuous_hotkey:
+            hotkey_configs.append({
+                'combination': self.meeting_continuous_hotkey,
+                'callback': self._meeting_continuous_hotkey_pressed,
+                'release_callback': self._arm_keys_on_release,
+                'name': 'meeting continuous'
+            })
+
+        if self.meeting_mic_only_hotkey:
+            hotkey_configs.append({
+                'combination': self.meeting_mic_only_hotkey,
+                'callback': self._meeting_mic_only_hotkey_pressed,
+                'release_callback': self._arm_keys_on_release,
+                'name': 'meeting mic-only'
+            })
+
+        if self.meeting_sys_only_hotkey:
+            hotkey_configs.append({
+                'combination': self.meeting_sys_only_hotkey,
+                'callback': self._meeting_sys_only_hotkey_pressed,
+                'release_callback': self._arm_keys_on_release,
+                'name': 'meeting sys-only'
             })
 
         hotkey_configs.sort(key=self._get_hotkey_combination_specificity, reverse=True)
@@ -172,6 +202,29 @@ class HotkeyListener:
         self.keys_armed = False
         self.state_manager.toggle_meeting_recording()
 
+    def _meeting_continuous_hotkey_pressed(self):
+        self.logger.info(f"Meeting continuous hotkey pressed: {self.meeting_continuous_hotkey}")
+        self.keys_armed = False
+        self.state_manager.toggle_meeting_recording(auto_stop_seconds=0)
+
+    def _meeting_mic_only_hotkey_pressed(self):
+        self.logger.info(f"Meeting mic-only hotkey pressed: {self.meeting_mic_only_hotkey}")
+        self.keys_armed = False
+        self.state_manager.toggle_meeting_recording(
+            capture_microphone=True,
+            capture_system_audio=False,
+            auto_stop_seconds=0,
+        )
+
+    def _meeting_sys_only_hotkey_pressed(self):
+        self.logger.info(f"Meeting sys-only hotkey pressed: {self.meeting_sys_only_hotkey}")
+        self.keys_armed = False
+        self.state_manager.toggle_meeting_recording(
+            capture_microphone=False,
+            capture_system_audio=True,
+            auto_stop_seconds=0,
+        )
+
     def _arm_keys_on_release(self):
         self.logger.debug("Key released - arming stop/auto-send keys")
         self.keys_armed = True
@@ -202,7 +255,7 @@ class HotkeyListener:
             self.logger.error(f"Error stopping hotkey listener: {e}")
 
     def change_hotkey_config(self, setting: str, value):
-        valid_settings = ['recording_hotkey', 'stop_key', 'auto_send_key', 'cancel_combination', 'command_hotkey', 'meeting_hotkey', 'recording_mode']
+        valid_settings = ['recording_hotkey', 'stop_key', 'auto_send_key', 'cancel_combination', 'command_hotkey', 'meeting_hotkey', 'meeting_continuous_hotkey', 'meeting_mic_only_hotkey', 'meeting_sys_only_hotkey', 'recording_mode']
 
         if setting not in valid_settings:
             raise ValueError(f"Invalid setting '{setting}'. Valid options: {valid_settings}")

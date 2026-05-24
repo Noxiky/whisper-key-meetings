@@ -191,6 +191,9 @@ def setup_hotkey_listener(hotkey_config, state_manager, voice_commands_enabled=T
         cancel_combination=hotkey_config.get('cancel_combination'),
         command_hotkey=hotkey_config.get('command_hotkey') if voice_commands_enabled else None,
         meeting_hotkey=hotkey_config.get('meeting_hotkey'),
+        meeting_continuous_hotkey=hotkey_config.get('meeting_continuous_hotkey'),
+        meeting_mic_only_hotkey=hotkey_config.get('meeting_mic_only_hotkey'),
+        meeting_sys_only_hotkey=hotkey_config.get('meeting_sys_only_hotkey'),
         recording_mode=hotkey_config.get('recording_mode', 'toggle')
     )
 

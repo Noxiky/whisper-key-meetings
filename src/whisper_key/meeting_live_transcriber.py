@@ -124,7 +124,7 @@ class MeetingLiveTranscriber:
         if segment_to_flush is not None:
             self._queue.put(segment_to_flush)
 
-    def start(self) -> None:
+    def start(self, auto_stop_seconds: Optional[float] = None, active_sources: Optional[list] = None) -> None:
         if self._thread and self._thread.is_alive():
             return
         self.reset_sources()
@@ -132,6 +132,11 @@ class MeetingLiveTranscriber:
             self._queue.queue.clear()
         self._stop_event.clear()
         self._silence_timeout_fired = False
+        self._current_auto_stop_seconds = (
+            float(auto_stop_seconds) if auto_stop_seconds is not None else self.auto_stop_silence_seconds
+        )
+        with self._lock:
+            self._active_source_ids = set(active_sources) if active_sources else set(self._sources.keys())
         self._thread = threading.Thread(
             target=self._run, name="MeetingLiveTranscriber", daemon=True
         )
@@ -174,20 +179,22 @@ class MeetingLiveTranscriber:
     def _check_silence_timeout(self) -> None:
         if self._silence_timeout_fired:
             return
-        if self.auto_stop_silence_seconds <= 0:
+        threshold = getattr(self, "_current_auto_stop_seconds", self.auto_stop_silence_seconds)
+        if threshold <= 0:
             return
         callback = self._silence_callback
         if callback is None:
             return
 
-        threshold = self.auto_stop_silence_seconds
         now = time.monotonic()
         with self._lock:
             if not self._sources:
                 return
+            active_ids = getattr(self, "_active_source_ids", None) or set(self._sources.keys())
             all_silent = all(
                 (now - source.get("last_audio_at", now)) >= threshold
-                for source in self._sources.values()
+                for source_id, source in self._sources.items()
+                if source_id in active_ids
             )
 
         if not all_silent:
