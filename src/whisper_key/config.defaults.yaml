@@ -166,13 +166,14 @@ hotkey: # Hotkey Configuration
     meeting_hotkey: "f9"
 
     # Continuous meeting (mic + system, NO auto-stop -- runs until you press it again)
-    meeting_continuous_hotkey: "f10"
+    # Win+F-key to avoid clashing with browser fullscreen (F11) / DevTools (F12) when WhisperKey is off
+    meeting_continuous_hotkey: "win+f10"
 
     # Mic-only continuous meeting (microphone only, no system audio, no auto-stop)
-    meeting_mic_only_hotkey: "f11"
+    meeting_mic_only_hotkey: "win+f11"
 
     # System-audio-only continuous meeting (computer audio only, no mic, no auto-stop)
-    meeting_sys_only_hotkey: "f12"
+    meeting_sys_only_hotkey: "win+f12"
 
 capture: # Capture Mode Settings
     # Default dictation path remains unchanged. Meeting mode is toggled by meeting_hotkey.
