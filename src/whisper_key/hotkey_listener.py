@@ -138,8 +138,8 @@ class HotkeyListener:
 
         if self.keys_armed:
             self.logger.info(f"Stop key activated: {self.stop_key}")
-            self._last_stop_at = time.monotonic()
-            self.state_manager.stop_recording()
+            if self.state_manager.stop_recording():
+                self._last_stop_at = time.monotonic()
         else:
             self.logger.debug("Stop key ignored - waiting for key release first")
 
