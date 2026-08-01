@@ -20,7 +20,7 @@ def prompt_choice(title: str, options: list[tuple[str, str]], subtitle: str = No
     width = max(len(t) for t in all_texts) + 2
 
     def pad(text):
-        return text + ' ' * (width - len(text))
+        return text + " " * (width - len(text))
 
     def line(text=""):
         return f"{CYAN}  │{RESET} {pad(text)} {CYAN}│{RESET}"
@@ -52,7 +52,7 @@ def prompt_choice(title: str, options: list[tuple[str, str]], subtitle: str = No
             if ch in valid_choices:
                 print(ch)
                 return valid_choices[ch]
-            if ch in ('\x03', '\x04'):
+            if ch in ("\x03", "\x04"):
                 print()
                 return -1
         except (KeyboardInterrupt, EOFError):

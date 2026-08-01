@@ -93,7 +93,7 @@ def setup():
     _get_hwnd()
     sys.stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace")
     sys.stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace")
-    sys.stdin = open("CONIN$", "r")
+    sys.stdin = open("CONIN$")
     _configure_console()
     _active = True
 

@@ -1,35 +1,37 @@
 import logging
-import time
-import threading
 import platform
-from typing import Optional
+import threading
+import time
 
 import sounddevice as sd
 
-from .audio_recorder import AudioRecorder
-from .whisper_engine import WhisperEngine
-from .clipboard_manager import ClipboardManager
-from .system_tray import SystemTray
-from .config_manager import ConfigManager
 from .audio_feedback import AudioFeedback
+from .audio_recorder import AudioRecorder
+from .clipboard_manager import ClipboardManager
+from .config_manager import ConfigManager
+from .meeting_live_transcriber import MeetingLiveTranscriber
+from .meeting_recorder import MeetingRecorder
+from .system_tray import SystemTray
 from .utils import OptionalComponent
 from .voice_activity_detection import VadEvent, VadManager
 from .voice_commands import VoiceCommandManager
-from .meeting_recorder import MeetingRecorder
-from .meeting_live_transcriber import MeetingLiveTranscriber
+from .whisper_engine import WhisperEngine
+
 
 class StateManager:
-    def __init__(self,
-                 audio_recorder: AudioRecorder,
-                 whisper_engine: WhisperEngine,
-                 clipboard_manager: ClipboardManager,
-                 config_manager: ConfigManager,
-                 vad_manager: VadManager,
-                 system_tray: Optional[SystemTray] = None,
-                 audio_feedback: Optional[AudioFeedback] = None,
-                 voice_command_manager: Optional[VoiceCommandManager] = None,
-                 meeting_recorder: Optional[MeetingRecorder] = None,
-                 meeting_live_transcriber: Optional[MeetingLiveTranscriber] = None):
+    def __init__(
+        self,
+        audio_recorder: AudioRecorder,
+        whisper_engine: WhisperEngine,
+        clipboard_manager: ClipboardManager,
+        config_manager: ConfigManager,
+        vad_manager: VadManager,
+        system_tray: SystemTray | None = None,
+        audio_feedback: AudioFeedback | None = None,
+        voice_command_manager: VoiceCommandManager | None = None,
+        meeting_recorder: MeetingRecorder | None = None,
+        meeting_live_transcriber: MeetingLiveTranscriber | None = None,
+    ):
 
         self.audio_recorder = audio_recorder
         self.whisper_engine = whisper_engine
@@ -57,13 +59,11 @@ class StateManager:
         self._current_audio_host = None
         self._initialize_audio_host()
 
-    def attach_components(self,
-                          audio_recorder: AudioRecorder,
-                          system_tray: Optional[SystemTray]):
+    def attach_components(self, audio_recorder: AudioRecorder, system_tray: SystemTray | None):
         self.audio_recorder = audio_recorder
         self.system_tray = OptionalComponent(system_tray)
         self._ensure_audio_device_for_host(self._current_audio_host)
-    
+
     def handle_max_recording_duration_reached(self, audio_data):
         self.logger.info("Max recording duration reached - starting transcription")
         self._transcription_pipeline(audio_data, use_auto_enter=False)
@@ -91,7 +91,7 @@ class StateManager:
         if self._streaming_display_active:
             print("\r" + " " * 75 + "\r", end="", flush=True)
             self._streaming_display_active = False
-    
+
     def stop_recording(self, use_auto_enter: bool = False) -> bool:
         currently_recording = self.audio_recorder.get_recording_status()
 
@@ -102,24 +102,24 @@ class StateManager:
             return True
         else:
             return False
-    
+
     def cancel_active_recording(self):
         self._clear_streaming_display()
         self._command_mode = False
         self.audio_recorder.cancel_recording()
         self.audio_feedback.play_cancel_sound()
         self.system_tray.update_state("idle")
-    
+
     def cancel_recording_hotkey_pressed(self) -> bool:
         current_state = self.get_current_state()
-        
+
         if current_state == "recording":
-            print("🎤 Recording cancelled!")            
+            print("🎤 Recording cancelled!")
             self.cancel_active_recording()
             return True
         else:
             return False
-    
+
     def start_recording(self):
         if not self.can_start_recording():
             current_state = self.get_current_state()
@@ -156,7 +156,7 @@ class StateManager:
             self.config_manager.print_stop_instructions_based_on_config()
             self.audio_feedback.play_start_sound()
             self.system_tray.update_state("recording")
-    
+
     def _transcription_pipeline(self, audio_data, use_auto_enter: bool = False):
         try:
             with self._state_lock:
@@ -183,18 +183,16 @@ class StateManager:
                 self._handle_command_transcription(transcribed_text, use_auto_enter)
                 return
 
-            success = self.clipboard_manager.deliver_transcription(
-                transcribed_text, use_auto_enter
-            )
+            success = self.clipboard_manager.deliver_transcription(transcribed_text, use_auto_enter)
 
             if success:
                 self.last_transcription = transcribed_text
                 self.audio_feedback.play_transcription_complete_sound()
-            
+
         except Exception as e:
             self.logger.error(f"Error in processing workflow: {e}")
             print(f"❌ Error processing recording: {e}")
-        
+
         finally:
             with self._state_lock:
                 self.is_processing = False
@@ -218,7 +216,7 @@ class StateManager:
 
     def _handle_command_transcription(self, text: str, use_auto_enter: bool = False):
         log_config = self.config_manager.get_logging_config()
-        if log_config.get('log_transcriptions', False):
+        if log_config.get("log_transcriptions", False):
             self.logger.info(f"Command mode transcription: '{text}'")
         else:
             self.logger.info("Command mode transcription received")
@@ -240,46 +238,46 @@ class StateManager:
             "processing": self.is_processing,
             "model_loading": self.is_model_loading,
         }
-        
+
         return status
-    
+
     def manual_transcribe_test(self, duration_seconds: int = 5):
         try:
             print(f"🎤 Recording for {duration_seconds} seconds...")
             print("Speak now!")
-            
+
             self.audio_recorder.start_recording()
-            
+
             time.sleep(duration_seconds)
-            
+
             audio_data = self.audio_recorder.stop_recording()
             self._transcription_pipeline(audio_data)
-            
+
         except Exception as e:
             self.logger.error(f"Manual test failed: {e}")
             print(f"❌ Test failed: {e}")
-    
-    def shutdown(self):        
+
+    def shutdown(self):
         print("Whisper Key is shutting down... goodbye!")
 
         if self.audio_recorder.get_recording_status():
             self.audio_recorder.stop_recording()
         if self.meeting_recorder and self.meeting_recorder.get_recording_status():
             self.meeting_recorder.cancel_recording()
-        
+
         self.system_tray.stop()
-    
+
     def set_model_loading(self, loading: bool):
         with self._state_lock:
             old_state = self.is_model_loading
             self.is_model_loading = loading
-            
+
             if old_state != loading:
                 if loading:
                     self.system_tray.update_state("processing")
                 else:
                     self.system_tray.update_state("idle")
-    
+
     def is_transcription_recording(self) -> bool:
         return self.audio_recorder.get_recording_status() and not self._command_mode
 
@@ -292,7 +290,13 @@ class StateManager:
         )
         threading.Thread(target=self.stop_meeting_recording, daemon=True).start()
 
-    def toggle_meeting_recording(self, *, capture_microphone=None, capture_system_audio=None, auto_stop_seconds=None) -> bool:
+    def toggle_meeting_recording(
+        self,
+        *,
+        capture_microphone=None,
+        capture_system_audio=None,
+        auto_stop_seconds=None,
+    ) -> bool:
         if not self.meeting_recorder or not self.meeting_live_transcriber:
             print("❌ Meeting listener is not configured")
             return False
@@ -305,7 +309,13 @@ class StateManager:
             auto_stop_seconds=auto_stop_seconds,
         )
 
-    def start_meeting_recording(self, *, capture_microphone=None, capture_system_audio=None, auto_stop_seconds=None) -> bool:
+    def start_meeting_recording(
+        self,
+        *,
+        capture_microphone=None,
+        capture_system_audio=None,
+        auto_stop_seconds=None,
+    ) -> bool:
         if not self.meeting_recorder:
             print("❌ Meeting listener is not configured")
             return False
@@ -314,8 +324,14 @@ class StateManager:
             return False
 
         meeting_cfg = self.config_manager.get_meeting_capture_config()
-        use_mic = capture_microphone if capture_microphone is not None else bool(meeting_cfg.get("capture_microphone", True))
-        use_sys = capture_system_audio if capture_system_audio is not None else bool(meeting_cfg.get("capture_system_audio", True))
+        use_mic = (
+            capture_microphone if capture_microphone is not None else bool(meeting_cfg.get("capture_microphone", True))
+        )
+        use_sys = (
+            capture_system_audio
+            if capture_system_audio is not None
+            else bool(meeting_cfg.get("capture_system_audio", True))
+        )
         active_sources = []
         if use_mic:
             active_sources.append("mic")
@@ -388,8 +404,13 @@ class StateManager:
     def can_start_recording(self) -> bool:
         with self._state_lock:
             meeting_active = bool(self.meeting_recorder and self.meeting_recorder.get_recording_status())
-            return not (self.is_processing or self.is_model_loading or self.audio_recorder.get_recording_status() or meeting_active)
-    
+            return not (
+                self.is_processing
+                or self.is_model_loading
+                or self.audio_recorder.get_recording_status()
+                or meeting_active
+            )
+
     def get_current_state(self) -> str:
         with self._state_lock:
             if self.is_model_loading:
@@ -402,37 +423,37 @@ class StateManager:
                 return "meeting"
             else:
                 return "idle"
-    
+
     def request_model_change(self, new_model_key: str) -> bool:
         current_state = self.get_current_state()
-        
+
         if new_model_key == self.whisper_engine.model_key:
             return True
-        
+
         if current_state == "model_loading":
             print("⏳ Model already loading, please wait...")
             return False
-        
+
         if current_state == "recording":
             print(f"🎤 Cancelling recording to switch to [{new_model_key}] model...")
             self.cancel_active_recording()
             self._execute_model_change(new_model_key)
             return True
-        
+
         if current_state == "processing":
             print(f"⏳ Queueing model change to [{new_model_key}] until transcription completes...")
             self._pending_model_change = new_model_key
             return True
-        
+
         if current_state == "idle":
             self._execute_model_change(new_model_key)
             return True
-        
+
         self.logger.warning(f"Unexpected state for model change: {current_state}")
         return False
-    
+
     def update_transcription_mode(self, value):
-        self.config_manager.update_user_setting('clipboard', 'auto_paste', value)
+        self.config_manager.update_user_setting("clipboard", "auto_paste", value)
         self.clipboard_manager.update_auto_paste(value)
 
     def _execute_model_change(self, new_model_key: str):
@@ -446,19 +467,19 @@ class StateManager:
             else:
                 print(f"🔄 {message}")
                 self.set_model_loading(True)
-        
+
         try:
             self.set_model_loading(True)
             print(f"🔄 Switching to [{new_model_key}] model...")
-            
+
             self.whisper_engine.change_model(new_model_key, progress_callback)
-            
+
         except Exception as e:
             self.logger.error(f"Failed to initiate model change: {e}")
             print(f"❌ Failed to change model: {e}")
             self.set_model_loading(False)
 
-    def get_available_audio_devices(self, host_filter: Optional[str] = None):
+    def get_available_audio_devices(self, host_filter: str | None = None):
         host_name = host_filter if host_filter is not None else self._current_audio_host
         return AudioRecorder.get_available_audio_devices(host_name)
 
@@ -475,25 +496,19 @@ class StateManager:
 
         hosts_with_input = {}
         for index, host in enumerate(hostapis):
-            hosts_with_input[index] = {
-                'name': host['name'],
-                'index': index,
-                'has_input': False
-            }
+            hosts_with_input[index] = {"name": host["name"], "index": index, "has_input": False}
 
         for device in devices:
-            if device.get('max_input_channels', 0) > 0:
-                host_index = device['hostapi']
+            if device.get("max_input_channels", 0) > 0:
+                host_index = device["hostapi"]
                 if host_index in hosts_with_input:
-                    hosts_with_input[host_index]['has_input'] = True
+                    hosts_with_input[host_index]["has_input"] = True
 
         return [
-            {'name': host['name'], 'index': host['index']}
-            for host in hosts_with_input.values()
-            if host['has_input']
+            {"name": host["name"], "index": host["index"]} for host in hosts_with_input.values() if host["has_input"]
         ]
 
-    def get_current_audio_host(self) -> Optional[str]:
+    def get_current_audio_host(self) -> str | None:
         return self._current_audio_host
 
     def set_audio_host(self, host_name: str) -> bool:
@@ -501,14 +516,14 @@ class StateManager:
             return False
 
         available_hosts = self.get_available_audio_hosts()
-        normalized_lookup = {host['name'].lower(): host for host in available_hosts}
+        normalized_lookup = {host["name"].lower(): host for host in available_hosts}
         host_entry = normalized_lookup.get(host_name.lower())
 
         if not host_entry:
             self.logger.warning(f"Requested audio host '{host_name}' is not available")
             return False
 
-        canonical_name = host_entry['name']
+        canonical_name = host_entry["name"]
         if canonical_name == self._current_audio_host:
             return True
 
@@ -527,13 +542,13 @@ class StateManager:
             return True
 
         if current_state == "recording":
-            print(f"🎤 Cancelling recording to switch audio device...")
+            print("🎤 Cancelling recording to switch audio device...")
             self.cancel_active_recording()
             self._execute_audio_device_change(device_id, device_name)
             return True
 
         if current_state == "processing":
-            print(f"⏳ Queueing audio device change until transcription completes...")
+            print("⏳ Queueing audio device change until transcription completes...")
             self._pending_device_change = (device_id, device_name)
             return True
 
@@ -565,7 +580,7 @@ class StateManager:
                 vad_manager=vad_manager,
                 streaming_manager=streaming_manager,
                 on_streaming_result=on_streaming_result,
-                device=device_id if device_id != -1 else None
+                device=device_id if device_id != -1 else None,
             )
 
             self.audio_recorder = new_recorder
@@ -578,7 +593,7 @@ class StateManager:
 
     def _initialize_audio_host(self):
         try:
-            configured_host = self.config_manager.get_setting('audio', 'host')
+            configured_host = self.config_manager.get_setting("audio", "host")
         except KeyError:
             configured_host = None
 
@@ -590,14 +605,11 @@ class StateManager:
         if resolved_host != configured_host:
             self.config_manager.update_audio_host(resolved_host)
 
-    def _resolve_audio_host(self, configured_host: Optional[str], available_hosts):
+    def _resolve_audio_host(self, configured_host: str | None, available_hosts):
         if not available_hosts:
             return None
 
-        normalized_lookup = {
-            host['name'].lower(): host['name']
-            for host in available_hosts
-        }
+        normalized_lookup = {host["name"].lower(): host["name"] for host in available_hosts}
 
         if configured_host:
             match = normalized_lookup.get(configured_host.lower())
@@ -610,15 +622,15 @@ class StateManager:
             if preferred_match:
                 return preferred_match
 
-        return available_hosts[0]['name']
+        return available_hosts[0]["name"]
 
-    def _preferred_platform_host(self) -> Optional[str]:
+    def _preferred_platform_host(self) -> str | None:
         system_name = platform.system().lower()
-        if system_name == 'windows':
-            return 'WASAPI'
+        if system_name == "windows":
+            return "WASAPI"
         return None
 
-    def _ensure_audio_device_for_host(self, host_name: Optional[str]):
+    def _ensure_audio_device_for_host(self, host_name: str | None):
         if not host_name or not self.audio_recorder:
             return
 
@@ -645,33 +657,33 @@ class StateManager:
     def _device_matches_host(self, device_id: int, host_name: str) -> bool:
         try:
             device_info = sd.query_devices(device_id)
-            host_info = sd.query_hostapis(device_info['hostapi'])
-            return host_info['name'].lower() == host_name.lower()
+            host_info = sd.query_hostapis(device_info["hostapi"])
+            return host_info["name"].lower() == host_name.lower()
         except Exception:
             return False
 
-    def _get_default_device_for_host(self, host_name: str) -> Optional[int]:
+    def _get_default_device_for_host(self, host_name: str) -> int | None:
         try:
             target_index = None
             target_host = None
             hostapis = sd.query_hostapis()
             for idx, host in enumerate(hostapis):
-                if host['name'].lower() == host_name.lower():
+                if host["name"].lower() == host_name.lower():
                     target_index = idx
                     target_host = host
                     break
             else:
                 return None
 
-            default_input = target_host.get('default_input_device', -1)
+            default_input = target_host.get("default_input_device", -1)
             if default_input is not None and default_input >= 0:
                 device_info = sd.query_devices(default_input)
-                if device_info.get('max_input_channels', 0) > 0:
+                if device_info.get("max_input_channels", 0) > 0:
                     return default_input
 
             all_devices = sd.query_devices()
             for idx, device in enumerate(all_devices):
-                if device['hostapi'] == target_index and device.get('max_input_channels', 0) > 0:
+                if device["hostapi"] == target_index and device.get("max_input_channels", 0) > 0:
                     return idx
         except Exception as e:
             self.logger.error(f"Failed to determine default device for host {host_name}: {e}")
@@ -681,6 +693,6 @@ class StateManager:
     def _get_device_name(self, device_id: int) -> str:
         try:
             device_info = sd.query_devices(device_id)
-            return device_info.get('name', f"Device {device_id}")
+            return device_info.get("name", f"Device {device_id}")
         except Exception:
             return f"Device {device_id}"

@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Optional
+from pathlib import Path
 
 from faster_whisper.utils import _MODELS
 
@@ -30,6 +30,31 @@ class ModelRegistry:
         model = self.get_model(key)
         return model.source if model else key
 
+    def get_runtime_source(self, key: str) -> str:
+        """Prefer a complete local snapshot so normal startup never needs the network."""
+        snapshot = self.get_cached_snapshot_path(key)
+        return snapshot or self.get_source(key)
+
+    def get_cached_snapshot_path(self, key: str) -> str | None:
+        model = self.get_model(key)
+        if model and model.is_local_path:
+            return model.source if self._snapshot_is_complete(model.source) else None
+        cache_folder = self.get_cache_folder(key)
+        if not cache_folder:
+            return None
+        snapshots = Path(self.get_hf_cache_path()) / cache_folder / "snapshots"
+        if not snapshots.is_dir():
+            return None
+        candidates = sorted(
+            (path for path in snapshots.iterdir() if path.is_dir()),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        for snapshot in candidates:
+            if self._snapshot_is_complete(str(snapshot)):
+                return str(snapshot)
+        return None
+
     def get_cache_folder(self, key: str) -> str:
         model = self.get_model(key)
         if not model:
@@ -43,19 +68,23 @@ class ModelRegistry:
         return ["official", "custom"]
 
     def get_hf_cache_path(self) -> str:
-        userprofile = os.environ.get('USERPROFILE')
+        userprofile = os.environ.get("USERPROFILE")
         if userprofile:
-            return os.path.join(userprofile, '.cache', 'huggingface', 'hub')
-        return os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'hub')
+            return os.path.join(userprofile, ".cache", "huggingface", "hub")
+        return os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
 
     def is_model_cached(self, key: str) -> bool:
-        model = self.get_model(key)
-        if model and model.is_local_path:
-            return os.path.exists(os.path.join(model.source, 'model.bin'))
-        cache_folder = self.get_cache_folder(key)
-        if not cache_folder:
-            return False
-        return os.path.exists(os.path.join(self.get_hf_cache_path(), cache_folder))
+        return self.get_cached_snapshot_path(key) is not None
+
+    @staticmethod
+    def _snapshot_is_complete(folder: str) -> bool:
+        required = ("model.bin", "config.json")
+        tokenizer_options = ("tokenizer.json", "vocabulary.json", "vocabulary.txt")
+        return (
+            os.path.isdir(folder)
+            and all(os.path.isfile(os.path.join(folder, name)) for name in required)
+            and any(os.path.isfile(os.path.join(folder, name)) for name in tokenizer_options)
+        )
 
     def _is_streaming_model_cached(self, key: str) -> bool:
         model = self.streaming_models.get(key)
@@ -71,13 +100,13 @@ class ModelRegistry:
                 return False
         return True
 
-    def _get_streaming_snapshot_path(self, key: str) -> Optional[str]:
+    def _get_streaming_snapshot_path(self, key: str) -> str | None:
         model = self.streaming_models.get(key)
         if not model:
             return None
 
         model_dir = os.path.join(self.get_hf_cache_path(), model.cache_folder)
-        snapshots_dir = os.path.join(model_dir, 'snapshots')
+        snapshots_dir = os.path.join(model_dir, "snapshots")
 
         if not os.path.exists(snapshots_dir):
             return None
@@ -88,7 +117,7 @@ class ModelRegistry:
 
         return os.path.join(snapshots_dir, snapshots[0])
 
-    def get_streaming_model_path(self, key: str) -> Optional[tuple]:
+    def get_streaming_model_path(self, key: str) -> tuple | None:
         model = self.streaming_models.get(key)
         if not model:
             return None
@@ -110,6 +139,7 @@ class ModelRegistry:
 
         try:
             from huggingface_hub import snapshot_download
+
             self.logger.info(f"Downloading streaming model: {model.source}")
             print(f"   Downloading streaming model: {model.label}...")
             snapshot_download(repo_id=model.source)

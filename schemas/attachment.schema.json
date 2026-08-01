@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whisperkey.local/schemas/attachment.schema.json",
+  "title": "WhisperKey Attachment",
+  "type": "object",
+  "required": ["attachment_id", "kind", "at_ms", "relative_path", "media_type", "sha256"],
+  "properties": {
+    "attachment_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "kind": { "enum": ["screenshot", "photo", "audio_excerpt", "imported_file"] },
+    "at_ms": { "type": "integer", "minimum": 0 },
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])[.][.](?:[/\\\\]|$)).+$"
+    },
+    "media_type": { "type": "string", "pattern": "^[a-z0-9.+-]+/[a-z0-9.+-]+$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "width": { "type": "integer", "minimum": 1 },
+    "height": { "type": "integer", "minimum": 1 }
+    ,
+    "duration_ms": { "type": "integer", "minimum": 1 },
+    "source": { "enum": ["MIC", "SYS"] }
+  },
+  "additionalProperties": false
+}

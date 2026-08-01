@@ -1,19 +1,26 @@
 import logging
 import time
-from typing import Optional
 
 import pyperclip
 
 from .platform import keyboard
 from .utils import parse_hotkey
 
+
 class ClipboardManager:
-    def __init__(self, auto_paste, delivery_method, paste_hotkey,
-                 paste_pre_paste_delay, paste_preserve_clipboard,
-                 paste_clipboard_restore_delay,
-                 type_also_copy_to_clipboard, type_auto_enter_delay,
-                 type_auto_enter_delay_per_100_chars,
-                 macos_key_simulation_delay):
+    def __init__(
+        self,
+        auto_paste,
+        delivery_method,
+        paste_hotkey,
+        paste_pre_paste_delay,
+        paste_preserve_clipboard,
+        paste_clipboard_restore_delay,
+        type_also_copy_to_clipboard,
+        type_auto_enter_delay,
+        type_auto_enter_delay_per_100_chars,
+        macos_key_simulation_delay,
+    ):
         self.logger = logging.getLogger(__name__)
         self.auto_paste = auto_paste
         self.delivery_method = keyboard.validate_delivery_method(delivery_method)
@@ -43,7 +50,7 @@ class ClipboardManager:
         hotkey_display = self.paste_hotkey.upper()
         if self.auto_paste:
             if self.delivery_method == "type":
-                print(f"   ✓ Auto-paste is ENABLED using direct text injection")
+                print("   ✓ Auto-paste is ENABLED using direct text injection")
             else:
                 print(f"   ✓ Auto-paste is ENABLED using clipboard paste ({hotkey_display})")
         else:
@@ -62,7 +69,7 @@ class ClipboardManager:
             self.logger.error(f"Failed to copy text to clipboard: {e}")
             return False
 
-    def get_clipboard_content(self) -> Optional[str]:
+    def get_clipboard_content(self) -> str | None:
         try:
             clipboard_content = pyperclip.paste()
 
@@ -101,7 +108,7 @@ class ClipboardManager:
             keyboard.type_text(text)
             if self.type_also_copy_to_clipboard:
                 pyperclip.copy(text)
-            print(f"   ✓ Auto-pasted via text injection")
+            print("   ✓ Auto-pasted via text injection")
             return True
         except Exception as e:
             self.logger.error(f"Failed to inject text: {e}")
@@ -119,7 +126,7 @@ class ClipboardManager:
             time.sleep(self.paste_pre_paste_delay)
             keyboard.send_hotkey(*self.paste_keys)
 
-            print(f"   ✓ Auto-pasted via key simulation")
+            print("   ✓ Auto-pasted via key simulation")
 
             if original_content is not None:
                 time.sleep(self.paste_clipboard_restore_delay)
@@ -140,7 +147,7 @@ class ClipboardManager:
     def send_enter_key(self) -> bool:
         try:
             self.logger.info("Sending ENTER key to active application")
-            keyboard.send_key('enter')
+            keyboard.send_key("enter")
             print("   ✓ Text submitted with ENTER!")
 
             return True
@@ -149,16 +156,17 @@ class ClipboardManager:
             self.logger.error(f"Failed to send ENTER key: {e}")
             return False
 
-    def deliver_transcription(self,
-                              transcribed_text: str,
-                              use_auto_enter: bool = False) -> bool:
+    def deliver_transcription(self, transcribed_text: str, use_auto_enter: bool = False) -> bool:
 
         try:
             if self.auto_paste:
                 success = self.execute_delivery(transcribed_text)
                 if success and use_auto_enter:
                     if self.delivery_method == "type":
-                        delay = self.type_auto_enter_delay + len(transcribed_text) / 100 * self.type_auto_enter_delay_per_100_chars
+                        delay = (
+                            self.type_auto_enter_delay
+                            + len(transcribed_text) / 100 * self.type_auto_enter_delay_per_100_chars
+                        )
                         if delay > 0:
                             time.sleep(delay)
                     success = self.send_enter_key()

@@ -1,0 +1,352 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whisperkey.local/schemas/timeline-event.schema.json",
+  "title": "WhisperKey Timeline Event",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "event_id",
+    "session_id",
+    "sequence",
+    "occurred_at",
+    "session_offset_ms",
+    "producer_version",
+    "type",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event_id": { "$ref": "#/$defs/uuid" },
+    "session_id": { "$ref": "#/$defs/uuid" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "session_offset_ms": { "type": "integer", "minimum": 0 },
+    "producer_version": { "type": "string", "minLength": 1, "maxLength": 50 },
+    "type": {
+      "enum": [
+        "session_created",
+        "stage_started",
+        "source_started",
+        "source_health",
+        "audio_chunk_finalized",
+        "transcript_provisional",
+        "transcript_final",
+        "marker_created",
+        "spoken_note",
+        "snapshot_created",
+        "pause_started",
+        "pause_ended",
+        "source_stopped",
+        "stage_ended",
+        "session_named",
+        "session_finalized",
+        "session_completed",
+        "processing_started",
+        "projection_written",
+        "processing_failed",
+        "processing_job",
+        "capture_timing_reconciled",
+        "retention_applied",
+        "retention_restored",
+        "recovery_detected"
+      ]
+    },
+    "payload": { "type": "object" }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "session_created" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["mode"],
+            "properties": {
+              "mode": { "enum": ["dictation", "meeting", "learning", "reading", "idea"] },
+              "retention": {
+                "type": "object",
+                "required": ["audio", "marker_context_before_ms", "marker_context_after_ms"],
+                "properties": {
+                  "audio": { "enum": ["all", "until_verified", "marker_context", "none"] },
+                  "marker_context_before_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+                  "marker_context_after_ms": { "type": "integer", "minimum": 0, "maximum": 600000 }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "stage_started" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["stage_id", "stage_sequence"],
+            "properties": {
+              "stage_id": { "$ref": "#/$defs/uuid" },
+              "stage_sequence": { "type": "integer", "minimum": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "audio_chunk_finalized" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": [
+              "source",
+              "relative_path",
+              "started_at_ms",
+              "ended_at_ms",
+              "duration_ms",
+              "sample_rate",
+              "channels",
+              "frames",
+              "sha256"
+            ],
+            "properties": {
+              "source": { "enum": ["MIC", "SYS", "IMPORTED"] },
+              "relative_path": {
+                "type": "string",
+                "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])[.][.](?:[/\\\\]|$)).+$"
+              },
+              "started_at_ms": { "type": "integer", "minimum": 0 },
+              "ended_at_ms": { "type": "integer", "minimum": 0 },
+              "duration_ms": { "type": "integer", "minimum": 1 },
+              "sample_rate": { "type": "integer", "minimum": 1 },
+              "channels": { "type": "integer", "minimum": 1 },
+              "frames": { "type": "integer", "minimum": 1 },
+              "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "transcript_provisional" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["provisional_id", "source", "started_at_ms", "ended_at_ms", "raw_text"],
+            "properties": {
+              "provisional_id": { "$ref": "#/$defs/uuid" },
+              "source": { "enum": ["MIC", "SYS", "MIXED", "IMPORTED"] },
+              "started_at_ms": { "type": "integer", "minimum": 0 },
+              "ended_at_ms": { "type": "integer", "minimum": 0 },
+              "raw_text": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "transcript_final" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["segment_id", "source", "started_at_ms", "ended_at_ms", "raw_text"],
+            "properties": {
+              "segment_id": { "$ref": "#/$defs/uuid" },
+              "source": { "enum": ["MIC", "SYS", "MIXED", "IMPORTED"] },
+              "started_at_ms": { "type": "integer", "minimum": 0 },
+              "ended_at_ms": { "type": "integer", "minimum": 0 },
+              "language": { "type": ["string", "null"] },
+              "raw_text": { "type": "string", "minLength": 1 },
+              "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+              "audio_path": {
+                "type": ["string", "null"],
+                "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])[.][.](?:[/\\\\]|$)).+$"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "source_health" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["source_id", "status", "detail", "fatal"],
+            "properties": {
+              "source_id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+              "status": { "enum": ["starting", "active", "silent", "unavailable", "persistence_backpressure", "transcription_backpressure", "stopped"] },
+              "detail": { "type": "string", "minLength": 1, "maxLength": 1000 },
+              "fatal": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "processing_job" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["job", "status", "attempt", "output", "error", "duration_ms"],
+            "properties": {
+              "job": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+              "status": { "enum": ["queued", "processing", "complete", "failed", "skipped"] },
+              "attempt": { "type": "integer", "minimum": 1 },
+              "output": { "type": ["string", "null"] },
+              "error": { "type": ["string", "null"], "maxLength": 4000 },
+              "duration_ms": { "type": ["integer", "null"], "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "capture_timing_reconciled" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": [
+              "reason",
+              "captured_duration_ms",
+              "paused_duration_ms",
+              "wall_duration_ms",
+              "source_duration_ms"
+            ],
+            "properties": {
+              "reason": { "enum": ["pause", "interruption", "stage_end"] },
+              "captured_duration_ms": { "type": "integer", "minimum": 0 },
+              "paused_duration_ms": { "type": "integer", "minimum": 0 },
+              "wall_duration_ms": { "type": "integer", "minimum": 0 },
+              "source_duration_ms": {
+                "type": "object",
+                "propertyNames": { "enum": ["MIC", "SYS", "IMPORTED"] },
+                "additionalProperties": { "type": "integer", "minimum": 1 },
+                "minProperties": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "marker_created" } } },
+      "then": { "properties": { "payload": { "$ref": "marker.schema.json" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "spoken_note" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": [
+              "spoken_note_id",
+              "marker_id",
+              "segment_id",
+              "started_at_ms",
+              "ended_at_ms",
+              "raw_text"
+            ],
+            "properties": {
+              "spoken_note_id": { "$ref": "#/$defs/uuid" },
+              "marker_id": { "$ref": "#/$defs/uuid" },
+              "segment_id": { "$ref": "#/$defs/uuid" },
+              "started_at_ms": { "type": "integer", "minimum": 0 },
+              "ended_at_ms": { "type": "integer", "minimum": 0 },
+              "raw_text": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "retention_applied" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["application_id", "policy", "preview_id", "trash_key", "items", "total_bytes"],
+            "properties": {
+              "application_id": { "$ref": "#/$defs/uuid" },
+              "policy": { "enum": ["until_verified", "marker_context", "none"] },
+              "preview_id": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "trash_key": {
+                "type": "string",
+                "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])[.][.](?:[/\\\\]|$)).+$"
+              },
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["relative_path", "bytes", "sha256"],
+                  "properties": {
+                    "relative_path": {
+                      "type": "string",
+                      "pattern": "^audio/(?:mic|sys)/[^/]+[.]wav$"
+                    },
+                    "bytes": { "type": "integer", "minimum": 1 },
+                    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "total_bytes": { "type": "integer", "minimum": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "retention_restored" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["application_id", "items", "total_bytes"],
+            "properties": {
+              "application_id": { "$ref": "#/$defs/uuid" },
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "^audio/(?:mic|sys)/[^/]+[.]wav$"
+                }
+              },
+              "total_bytes": { "type": "integer", "minimum": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "snapshot_created" } } },
+      "then": { "properties": { "payload": { "$ref": "attachment.schema.json" } } }
+    }
+  ],
+  "additionalProperties": false
+}

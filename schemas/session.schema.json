@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whisperkey.local/schemas/session.schema.json",
+  "title": "WhisperKey Session",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "session_id",
+    "mode",
+    "status",
+    "created_at",
+    "title",
+    "retention",
+    "stages"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "session_id": { "$ref": "#/$defs/uuid" },
+    "mode": { "enum": ["dictation", "meeting", "learning", "reading", "idea"] },
+    "status": {
+      "enum": ["draft", "preparing", "recording", "paused", "processing", "recoverable", "completed", "error"]
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "title": { "type": ["string", "null"], "minLength": 1, "maxLength": 200 },
+    "retention": {
+      "type": "object",
+      "required": ["audio", "marker_context_before_ms", "marker_context_after_ms"],
+      "properties": {
+        "audio": { "enum": ["all", "until_verified", "marker_context", "none"] },
+        "marker_context_before_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+        "marker_context_after_ms": { "type": "integer", "minimum": 0, "maximum": 600000 }
+      },
+      "additionalProperties": false
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stage_id", "sequence", "started_at", "status"],
+        "properties": {
+          "stage_id": { "$ref": "#/$defs/uuid" },
+          "sequence": { "type": "integer", "minimum": 1 },
+          "started_at": { "type": "string", "format": "date-time" },
+          "ended_at": { "type": ["string", "null"], "format": "date-time" },
+          "status": { "enum": ["recording", "paused", "interrupted", "completed"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "wall_duration_ms": { "type": "integer", "minimum": 0 },
+    "captured_duration_ms": { "type": "integer", "minimum": 0 },
+    "paused_duration_ms": { "type": "integer", "minimum": 0 },
+    "processing_duration_ms": { "type": "integer", "minimum": 0 }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  },
+  "additionalProperties": false
+}

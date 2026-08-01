@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whisperkey.local/schemas/speaker-revision.schema.json",
+  "title": "WhisperKey Speaker Revision",
+  "type": "object",
+  "required": ["schema_version", "revision", "speakers", "assignments"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "revision": {"type": "integer", "minimum": 1},
+    "speakers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["speaker_id", "display_name"],
+        "properties": {
+          "speaker_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+          "display_name": {"type": "string", "minLength": 1, "maxLength": 100}
+        },
+        "additionalProperties": false
+      }
+    },
+    "assignments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["segment_id", "speaker_id", "confidence", "method"],
+        "properties": {
+          "segment_id": {"type": "string", "pattern": "^[0-9a-f-]{36}$"},
+          "speaker_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+          "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+          "method": {"enum": ["diarization", "source", "source_fallback", "manual"]}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

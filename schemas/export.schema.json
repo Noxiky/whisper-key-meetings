@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whisperkey.local/schemas/export.schema.json",
+  "title": "WhisperKey Export Record",
+  "type": "object",
+  "required": ["export_id", "session_id", "kind", "created_at", "relative_path", "source_sequence"],
+  "properties": {
+    "export_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "kind": { "enum": ["literal_markdown", "clean_markdown", "markers_markdown", "learning_html"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])[.][.](?:[/\\\\]|$)).+$"
+    },
+    "source_sequence": { "type": "integer", "minimum": 0 },
+    "sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" }
+  },
+  "additionalProperties": false
+}

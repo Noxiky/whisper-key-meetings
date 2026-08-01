@@ -1,8 +1,8 @@
 import json
 import subprocess
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 
 from .terminal_ui import BOLD_GREEN, BOLD_RED, RESET, prompt_choice
 from .utils import get_version, restart_or_exit
@@ -28,6 +28,7 @@ def fetch_latest_version():
 def is_newer(latest, current):
     try:
         from packaging.version import Version
+
         return Version(latest) > Version(current)
     except Exception:
         return False
@@ -48,20 +49,23 @@ def check_for_updates(config_manager, test_mode=False):
 
     update_config = config_manager.get_update_config()
 
-    if update_config.get('mode') == 'auto':
+    if update_config.get("mode") == "auto":
         run_update(latest)
         return
 
-    choice = prompt_choice("Update available: {} -> {}".format(version, latest), [
-        ("Update now", "Downloads and installs the update"),
-        ("Always keep up-to-date", "Update now and auto-install future updates"),
-        ("Not now", "Skip for this session"),
-    ])
+    choice = prompt_choice(
+        f"Update available: {version} -> {latest}",
+        [
+            ("Update now", "Downloads and installs the update"),
+            ("Always keep up-to-date", "Update now and auto-install future updates"),
+            ("Not now", "Skip for this session"),
+        ],
+    )
 
     if choice == UPDATE_NOW:
         run_update(latest)
     elif choice == ALWAYS_UPDATE:
-        config_manager.update_user_setting('update', 'mode', 'auto')
+        config_manager.update_user_setting("update", "mode", "auto")
         run_update(latest)
     else:
         print()

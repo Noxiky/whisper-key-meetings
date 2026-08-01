@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "whisper-key-local"
-version = "0.8.1"
-description = "Global hotkeys to record speech and transcribe directly to your cursor"
+version = "0.9.0"
+description = "Local-first Windows dictation and durable voice knowledge capture"
 readme = "README.md"
 license = "MIT"
 authors = [
@@ -28,6 +28,7 @@ dependencies = [
     "hf-xet>=1.1.5",
     "playsound3>=2.0",
     "ten-vad>=1.0.6",
+    "PySide6>=6.8,<7",
 
     # Windows-only
     "global-hotkeys>=0.1.7; sys_platform=='win32'",
@@ -39,11 +40,42 @@ dependencies = [
 ]
 
 [project.scripts]
-whisper-key = "whisper_key.main:main"
-wk = "whisper_key.main:main"
+whisper-key = "whisper_key.ui.app:main"
+wk = "whisper_key.ui.app:main"
+whisper-key-gui = "whisper_key.ui.app:main"
+whisper-key-legacy = "whisper_key.main:main"
+
+[project.optional-dependencies]
+dev = [
+    "jsonschema[format]>=4.23.0",
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.11.0",
+]
+build = [
+    "pyinstaller>=6.14,<7",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "--strict-markers --strict-config"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"whisper_key" = ["assets/**/*", "platform/*/assets/*", "config.defaults.yaml", "commands.defaults.yaml"]
+"whisper_key" = [
+    "assets/**/*",
+    "platform/*/assets/*",
+    "ui/*.json",
+    "config.defaults.yaml",
+    "commands.defaults.yaml",
+]

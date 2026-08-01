@@ -2,12 +2,15 @@ import logging
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from enum import Enum
-from typing import Optional, Callable
+from typing import Optional
+
 import numpy as np
 
 try:
     from ten_vad import TenVad
+
     HAS_TEN_VAD = True
 except ImportError:
     TenVad = None
@@ -16,6 +19,7 @@ except ImportError:
 SAMPLE_RATE = 16000  # Fixed 16kHz sample rate for TEN VAD and Whisper
 VAD_HOP_DURATION_SEC = 0.016  # Fixed 256 samples at 16kHz
 VAD_CHUNK_SIZE = 256
+
 
 def convert_audio_for_ten_vad(audio_data: np.ndarray) -> np.ndarray:
     # Flatten audio (TEN VAD expects 1D array)
@@ -33,23 +37,28 @@ def convert_audio_for_ten_vad(audio_data: np.ndarray) -> np.ndarray:
 
     return audio_int16
 
+
 class VadState(Enum):
     SILENCE_COUNTING = "silence_counting"
     SPEECH_DETECTED = "speech_detected"
     TIMEOUT_TRIGGERED = "timeout_triggered"
 
+
 class VadEvent(Enum):
     NO_EVENT = "no_event"
     SILENCE_TIMEOUT = "silence_timeout"
 
+
 class VadManager:
-    def __init__(self,
-                 vad_precheck_enabled: bool = True,
-                 vad_realtime_enabled: bool = False,
-                 vad_onset_threshold: float = 0.7,
-                 vad_offset_threshold: float = 0.55,
-                 vad_min_speech_duration: float = 0.1,
-                 vad_silence_timeout_seconds: float = 20.0):
+    def __init__(
+        self,
+        vad_precheck_enabled: bool = True,
+        vad_realtime_enabled: bool = False,
+        vad_onset_threshold: float = 0.7,
+        vad_offset_threshold: float = 0.55,
+        vad_min_speech_duration: float = 0.1,
+        vad_silence_timeout_seconds: float = 20.0,
+    ):
 
         self.vad_precheck_enabled = vad_precheck_enabled
         self.vad_realtime_enabled = vad_realtime_enabled
@@ -83,11 +92,11 @@ class VadManager:
 
             probabilities = []
             for i in range(0, len(audio_int16), chunk_size):
-                chunk = audio_int16[i:i + chunk_size]
+                chunk = audio_int16[i : i + chunk_size]
 
                 # Make sure chunk meets TEN VAD 256-sample requirement
                 if len(chunk) < chunk_size:
-                    chunk = np.pad(chunk, (0, chunk_size - len(chunk)), mode='constant', constant_values=0)
+                    chunk = np.pad(chunk, (0, chunk_size - len(chunk)), mode="constant", constant_values=0)
 
                 out_probability, _ = self.ten_vad.process(chunk)
                 probabilities.append(out_probability)
@@ -95,16 +104,19 @@ class VadManager:
             # Capture processing time for performance monitoring
             vad_time = (time.time() - vad_start_time) * 1000
 
-            hysteresis = Hysteresis(high_threshold=self.vad_onset_threshold,
-                                   low_threshold=self.vad_offset_threshold,
-                                   frame_duration_sec=VAD_HOP_DURATION_SEC)
-            speech_detected = hysteresis.detect_speech_in_probabilities(
-                probabilities,
-                self.vad_min_speech_duration
+            hysteresis = Hysteresis(
+                high_threshold=self.vad_onset_threshold,
+                low_threshold=self.vad_offset_threshold,
+                frame_duration_sec=VAD_HOP_DURATION_SEC,
             )
+            speech_detected = hysteresis.detect_speech_in_probabilities(probabilities, self.vad_min_speech_duration)
 
             if speech_detected:
-                self.logger.info(f"TEN VAD check: SPEECH detected (duration: {duration:.2f}s, processing: {vad_time:.1f}ms)")
+                self.logger.info(
+                    "TEN VAD check: SPEECH detected (duration: %.2fs, processing: %.1fms)",
+                    duration,
+                    vad_time,
+                )
             else:
                 self.logger.info(f"TEN VAD check: SILENCE (duration: {duration:.2f}s, processing: {vad_time:.1f}ms)")
 
@@ -115,7 +127,10 @@ class VadManager:
             self.logger.warning(f"TEN VAD check failed after {vad_time:.1f}ms: {e}")
             return True
 
-    def create_continuous_detector(self, event_callback: Optional[Callable[[VadEvent], None]] = None) -> Optional["ContinuousVoiceDetector"]:
+    def create_continuous_detector(
+        self,
+        event_callback: Callable[[VadEvent], None] | None = None,
+    ) -> Optional["ContinuousVoiceDetector"]:
         if not self.vad_realtime_enabled or not self.ten_vad:
             return None
 
@@ -125,11 +140,12 @@ class VadManager:
             vad_offset_threshold=self.vad_offset_threshold,
             vad_silence_timeout_seconds=self.vad_silence_timeout_seconds,
             frame_duration_sec=VAD_HOP_DURATION_SEC,
-            event_callback=event_callback
+            event_callback=event_callback,
         )
 
     def is_available(self) -> bool:
         return self.ten_vad is not None
+
 
 class Hysteresis:
     def __init__(self, high_threshold, low_threshold, frame_duration_sec):
@@ -162,19 +178,28 @@ class Hysteresis:
 
         return False
 
+
 class ContinuousVoiceDetector:
-    def __init__(self, ten_vad, vad_onset_threshold, vad_offset_threshold,
-                 vad_silence_timeout_seconds, frame_duration_sec,
-                 event_callback: Optional[Callable[[VadEvent], None]] = None):
+    def __init__(
+        self,
+        ten_vad,
+        vad_onset_threshold,
+        vad_offset_threshold,
+        vad_silence_timeout_seconds,
+        frame_duration_sec,
+        event_callback: Callable[[VadEvent], None] | None = None,
+    ):
         self.ten_vad = ten_vad
-        self.hysteresis = Hysteresis(high_threshold=vad_onset_threshold,
-                                   low_threshold=vad_offset_threshold,
-                                   frame_duration_sec=frame_duration_sec)
+        self.hysteresis = Hysteresis(
+            high_threshold=vad_onset_threshold,
+            low_threshold=vad_offset_threshold,
+            frame_duration_sec=frame_duration_sec,
+        )
         self.silence_timeout_sec = vad_silence_timeout_seconds
         self.frame_duration_sec = frame_duration_sec
         self.silence_frame_count = 0
         self.frames_for_timeout = int(self.silence_timeout_sec / self.frame_duration_sec)
-        self.probability_buffer = deque(maxlen=self.frames_for_timeout) # Control memory growth with circular buffer
+        self.probability_buffer = deque(maxlen=self.frames_for_timeout)  # Control memory growth with circular buffer
         self.state = VadState.SILENCE_COUNTING
         self._lock = threading.Lock()
         self.event_callback = event_callback

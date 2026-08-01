@@ -14,8 +14,9 @@ SHERPA_SAMPLE_RATE = 16000
 
 
 class StreamingRecognizer:
-    def __init__(self, model_type: str = "standard", recording_rate: int = 16000,
-                 model_registry: "ModelRegistry" = None):
+    def __init__(
+        self, model_type: str = "standard", recording_rate: int = 16000, model_registry: "ModelRegistry" = None
+    ):
         self.logger = logging.getLogger(__name__)
         self.model_type = model_type
         self.recording_rate = recording_rate
@@ -83,7 +84,7 @@ class StreamingRecognizer:
             self.logger.warning(f"Warmup audio file not found: {warmup_file}")
             return False
 
-        with wave.open(str(warmup_file), 'rb') as wf:
+        with wave.open(str(warmup_file), "rb") as wf:
             sample_rate = wf.getframerate()
             n_channels = wf.getnchannels()
             frames = wf.readframes(wf.getnframes())
@@ -100,7 +101,7 @@ class StreamingRecognizer:
 
         chunk_size = 1600
         for i in range(0, len(audio), chunk_size):
-            self.stream.accept_waveform(SHERPA_SAMPLE_RATE, audio[i:i + chunk_size])
+            self.stream.accept_waveform(SHERPA_SAMPLE_RATE, audio[i : i + chunk_size])
             while self.recognizer.is_ready(self.stream):
                 self.recognizer.decode_stream(self.stream)
 

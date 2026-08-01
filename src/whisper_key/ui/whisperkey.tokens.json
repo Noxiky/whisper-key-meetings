@@ -1,0 +1,238 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "$description": "WhisperKey design tokens. Primitives feed semantic roles; components consume semantic roles.",
+  "primitive": {
+    "color": {
+      "$type": "color",
+      "neutral": {
+        "0": {"$value": "#FFFFFF"},
+        "25": {"$value": "#FAFBFC"},
+        "50": {"$value": "#F5F7F9"},
+        "100": {"$value": "#E9EDF2"},
+        "200": {"$value": "#D5DCE5"},
+        "300": {"$value": "#B4BFCC"},
+        "400": {"$value": "#8794A5"},
+        "500": {"$value": "#637084"},
+        "600": {"$value": "#475367"},
+        "700": {"$value": "#323C4D"},
+        "800": {"$value": "#202937"},
+        "850": {"$value": "#19212D"},
+        "900": {"$value": "#111822"},
+        "950": {"$value": "#090E15"},
+        "1000": {"$value": "#000000"}
+      },
+      "cyan": {
+        "100": {"$value": "#C8F7FB"},
+        "300": {"$value": "#76E8F2"},
+        "400": {"$value": "#4DD0E1"},
+        "500": {"$value": "#1DB8CB"},
+        "600": {"$value": "#0F8FA2"},
+        "800": {"$value": "#14505B"}
+      },
+      "green": {
+        "100": {"$value": "#C9F9D8"},
+        "400": {"$value": "#28DC64"},
+        "500": {"$value": "#16B84D"},
+        "800": {"$value": "#174B2B"}
+      },
+      "amber": {
+        "100": {"$value": "#FFF0C7"},
+        "400": {"$value": "#FFB030"},
+        "500": {"$value": "#E4920C"},
+        "800": {"$value": "#583D16"}
+      },
+      "red": {
+        "100": {"$value": "#FFD9D7"},
+        "400": {"$value": "#FF6B66"},
+        "500": {"$value": "#E94B45"},
+        "800": {"$value": "#5B2526"}
+      }
+    },
+    "space": {
+      "$type": "dimension",
+      "0": {"$value": "0px"},
+      "1": {"$value": "4px"},
+      "2": {"$value": "8px"},
+      "3": {"$value": "12px"},
+      "4": {"$value": "16px"},
+      "5": {"$value": "20px"},
+      "6": {"$value": "24px"},
+      "8": {"$value": "32px"},
+      "10": {"$value": "40px"},
+      "12": {"$value": "48px"},
+      "16": {"$value": "64px"}
+    },
+    "radius": {
+      "$type": "dimension",
+      "none": {"$value": "0px"},
+      "xs": {"$value": "2px"},
+      "sm": {"$value": "4px"},
+      "md": {"$value": "8px"},
+      "lg": {"$value": "12px"},
+      "xl": {"$value": "16px"},
+      "2xl": {"$value": "24px"},
+      "full": {"$value": "999px"}
+    },
+    "font": {
+      "family": {
+        "sans": {"$type": "fontFamily", "$value": "Segoe UI Variable"},
+        "mono": {"$type": "fontFamily", "$value": "Cascadia Mono"}
+      },
+      "size": {
+        "$type": "dimension",
+        "xs": {"$value": "11px"},
+        "sm": {"$value": "12px"},
+        "md": {"$value": "14px"},
+        "lg": {"$value": "16px"},
+        "xl": {"$value": "20px"},
+        "2xl": {"$value": "26px"},
+        "3xl": {"$value": "34px"}
+      },
+      "weight": {
+        "$type": "fontWeight",
+        "regular": {"$value": 400},
+        "medium": {"$value": 500},
+        "semibold": {"$value": 600},
+        "bold": {"$value": 700}
+      }
+    },
+    "duration": {
+      "$type": "duration",
+      "instant": {"$value": "0ms"},
+      "fast": {"$value": "100ms"},
+      "normal": {"$value": "180ms"},
+      "slow": {"$value": "280ms"}
+    },
+    "layout": {
+      "rail": {"$type": "dimension", "$value": "224px"},
+      "contentMax": {"$type": "dimension", "$value": "1180px"},
+      "controlHeight": {"$type": "dimension", "$value": "40px"},
+      "touchTarget": {"$type": "dimension", "$value": "44px"}
+    }
+  },
+  "semantic": {
+    "color": {
+      "$type": "color",
+      "surface": {
+        "canvas": {"$value": {"light": "{primitive.color.neutral.50}", "dark": "{primitive.color.neutral.950}"}},
+        "base": {"$value": {"light": "{primitive.color.neutral.0}", "dark": "{primitive.color.neutral.900}"}},
+        "raised": {"$value": {"light": "{primitive.color.neutral.0}", "dark": "{primitive.color.neutral.850}"}},
+        "sunken": {"$value": {"light": "{primitive.color.neutral.100}", "dark": "{primitive.color.neutral.1000}"}},
+        "selected": {"$value": {"light": "{primitive.color.cyan.100}", "dark": "{primitive.color.cyan.800}"}},
+        "scrim": {"$value": {"light": "#00000066", "dark": "#00000099"}}
+      },
+      "text": {
+        "primary": {"$value": {"light": "{primitive.color.neutral.900}", "dark": "{primitive.color.neutral.25}"}},
+        "secondary": {"$value": {"light": "{primitive.color.neutral.600}", "dark": "{primitive.color.neutral.300}"}},
+        "muted": {"$value": {"light": "{primitive.color.neutral.500}", "dark": "{primitive.color.neutral.400}"}},
+        "inverse": {"$value": {"light": "{primitive.color.neutral.0}", "dark": "{primitive.color.neutral.950}"}},
+        "accent": {"$value": {"light": "{primitive.color.cyan.600}", "dark": "{primitive.color.cyan.300}"}}
+      },
+      "border": {
+        "subtle": {"$value": {"light": "{primitive.color.neutral.100}", "dark": "{primitive.color.neutral.800}"}},
+        "default": {"$value": {"light": "{primitive.color.neutral.200}", "dark": "{primitive.color.neutral.700}"}},
+        "strong": {"$value": {"light": "{primitive.color.neutral.400}", "dark": "{primitive.color.neutral.500}"}},
+        "focus": {"$value": {"light": "{primitive.color.cyan.500}", "dark": "{primitive.color.cyan.300}"}}
+      },
+      "action": {
+        "primary": {"$value": {"light": "{primitive.color.cyan.600}", "dark": "{primitive.color.cyan.400}"}},
+        "primaryHover": {"$value": {"light": "{primitive.color.cyan.500}", "dark": "{primitive.color.cyan.300}"}},
+        "primaryPressed": {"$value": {"light": "{primitive.color.cyan.800}", "dark": "{primitive.color.cyan.600}"}},
+        "disabled": {"$value": {"light": "{primitive.color.neutral.200}", "dark": "{primitive.color.neutral.700}"}}
+      },
+      "status": {
+        "recording": {"$value": {"light": "{primitive.color.green.500}", "dark": "{primitive.color.green.400}"}},
+        "processing": {"$value": {"light": "{primitive.color.amber.500}", "dark": "{primitive.color.amber.400}"}},
+        "danger": {"$value": {"light": "{primitive.color.red.500}", "dark": "{primitive.color.red.400}"}},
+        "healthySurface": {"$value": {"light": "{primitive.color.green.100}", "dark": "{primitive.color.green.800}"}},
+        "warningSurface": {"$value": {"light": "{primitive.color.amber.100}", "dark": "{primitive.color.amber.800}"}},
+        "dangerSurface": {"$value": {"light": "{primitive.color.red.100}", "dark": "{primitive.color.red.800}"}}
+      }
+    },
+    "space": {
+      "inlineTight": {"$type": "dimension", "$value": "{primitive.space.1}"},
+      "inline": {"$type": "dimension", "$value": "{primitive.space.2}"},
+      "control": {"$type": "dimension", "$value": "{primitive.space.3}"},
+      "panel": {"$type": "dimension", "$value": "{primitive.space.4}"},
+      "section": {"$type": "dimension", "$value": "{primitive.space.6}"},
+      "page": {"$type": "dimension", "$value": "{primitive.space.8}"}
+    },
+    "radius": {
+      "control": {"$type": "dimension", "$value": "{primitive.radius.md}"},
+      "panel": {"$type": "dimension", "$value": "{primitive.radius.lg}"},
+      "dialog": {"$type": "dimension", "$value": "{primitive.radius.xl}"},
+      "pill": {"$type": "dimension", "$value": "{primitive.radius.full}"}
+    },
+    "type": {
+      "body": {"$type": "typography", "$value": {"family": "{primitive.font.family.sans}", "size": "{primitive.font.size.md}", "weight": "{primitive.font.weight.regular}"}},
+      "label": {"$type": "typography", "$value": {"family": "{primitive.font.family.sans}", "size": "{primitive.font.size.sm}", "weight": "{primitive.font.weight.semibold}"}},
+      "title": {"$type": "typography", "$value": {"family": "{primitive.font.family.sans}", "size": "{primitive.font.size.xl}", "weight": "{primitive.font.weight.semibold}"}},
+      "display": {"$type": "typography", "$value": {"family": "{primitive.font.family.sans}", "size": "{primitive.font.size.3xl}", "weight": "{primitive.font.weight.bold}"}},
+      "timer": {"$type": "typography", "$value": {"family": "{primitive.font.family.mono}", "size": "{primitive.font.size.lg}", "weight": "{primitive.font.weight.semibold}"}}
+    }
+  },
+  "component": {
+    "button": {
+      "height": {"$type": "dimension", "$value": "{primitive.layout.controlHeight}"},
+      "radius": {"$type": "dimension", "$value": "{semantic.radius.control}"},
+      "paddingX": {"$type": "dimension", "$value": "{semantic.space.control}"},
+      "primary": {
+        "background": {"$type": "color", "$value": "{semantic.color.action.primary}"},
+        "backgroundHover": {"$type": "color", "$value": "{semantic.color.action.primaryHover}"},
+        "backgroundPressed": {"$type": "color", "$value": "{semantic.color.action.primaryPressed}"},
+        "foreground": {"$type": "color", "$value": "{semantic.color.text.inverse}"}
+      },
+      "secondary": {
+        "background": {"$type": "color", "$value": "{semantic.color.surface.raised}"},
+        "foreground": {"$type": "color", "$value": "{semantic.color.text.primary}"},
+        "border": {"$type": "color", "$value": "{semantic.color.border.default}"}
+      }
+    },
+    "input": {
+      "height": {"$type": "dimension", "$value": "{primitive.layout.controlHeight}"},
+      "radius": {"$type": "dimension", "$value": "{semantic.radius.control}"},
+      "background": {"$type": "color", "$value": "{semantic.color.surface.base}"},
+      "foreground": {"$type": "color", "$value": "{semantic.color.text.primary}"},
+      "border": {"$type": "color", "$value": "{semantic.color.border.default}"},
+      "focus": {"$type": "color", "$value": "{semantic.color.border.focus}"}
+    },
+    "card": {
+      "background": {"$type": "color", "$value": "{semantic.color.surface.raised}"},
+      "border": {"$type": "color", "$value": "{semantic.color.border.subtle}"},
+      "radius": {"$type": "dimension", "$value": "{semantic.radius.panel}"},
+      "padding": {"$type": "dimension", "$value": "{semantic.space.panel}"}
+    },
+    "navigation": {
+      "width": {"$type": "dimension", "$value": "{primitive.layout.rail}"},
+      "background": {"$type": "color", "$value": "{semantic.color.surface.sunken}"},
+      "selectedBackground": {"$type": "color", "$value": "{semantic.color.surface.selected}"},
+      "selectedForeground": {"$type": "color", "$value": "{semantic.color.text.accent}"}
+    },
+    "tab": {
+      "foreground": {"$type": "color", "$value": "{semantic.color.text.secondary}"},
+      "activeForeground": {"$type": "color", "$value": "{semantic.color.text.primary}"},
+      "activeBorder": {"$type": "color", "$value": "{semantic.color.action.primary}"}
+    },
+    "badge": {
+      "radius": {"$type": "dimension", "$value": "{semantic.radius.pill}"},
+      "paddingX": {"$type": "dimension", "$value": "{semantic.space.inline}"}
+    },
+    "recording": {
+      "indicator": {"$type": "color", "$value": "{semantic.color.status.recording}"},
+      "timerText": {"$type": "color", "$value": "{semantic.color.text.primary}"},
+      "healthOk": {"$type": "color", "$value": "{semantic.color.status.recording}"},
+      "healthWarning": {"$type": "color", "$value": "{semantic.color.status.processing}"},
+      "healthError": {"$type": "color", "$value": "{semantic.color.status.danger}"}
+    },
+    "toast": {
+      "background": {"$type": "color", "$value": "{semantic.color.surface.raised}"},
+      "foreground": {"$type": "color", "$value": "{semantic.color.text.primary}"},
+      "radius": {"$type": "dimension", "$value": "{semantic.radius.panel}"}
+    },
+    "modal": {
+      "background": {"$type": "color", "$value": "{semantic.color.surface.raised}"},
+      "scrim": {"$type": "color", "$value": "{semantic.color.surface.scrim}"},
+      "radius": {"$type": "dimension", "$value": "{semantic.radius.dialog}"}
+    }
+  }
+}

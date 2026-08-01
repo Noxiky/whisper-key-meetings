@@ -3,12 +3,11 @@ import os
 import re
 import shutil
 import subprocess
-from typing import Optional
 
 from ruamel.yaml import YAML
 
-from .utils import resolve_asset_path, get_user_app_data_path
 from .platform import keyboard
+from .utils import get_user_app_data_path, resolve_asset_path
 
 
 class VoiceCommandManager:
@@ -31,23 +30,23 @@ class VoiceCommandManager:
 
         yaml = YAML()
         try:
-            with open(user_path, 'r', encoding='utf-8') as f:
+            with open(user_path, encoding="utf-8") as f:
                 data = yaml.load(f)
         except Exception as e:
             self.logger.error(f"Failed to parse {user_path}: {e}")
             raise
 
         self.commands_path = user_path
-        raw_commands = data.get('commands', []) if data else []
+        raw_commands = data.get("commands", []) if data else []
         self.commands = self._validate_commands(raw_commands)
-        self.commands.sort(key=lambda cmd: len(cmd.get('trigger', '')), reverse=True)
+        self.commands.sort(key=lambda cmd: len(cmd.get("trigger", "")), reverse=True)
         self.logger.info(f"Loaded {len(self.commands)} voice commands")
 
     def _validate_commands(self, raw_commands: list) -> list:
         valid = []
         for i, cmd in enumerate(raw_commands):
-            trigger = cmd.get('trigger', '')
-            action_count = sum(1 for key in ('run', 'hotkey', 'type') if key in cmd)
+            trigger = cmd.get("trigger", "")
+            action_count = sum(1 for key in ("run", "hotkey", "type") if key in cmd)
 
             if not trigger:
                 self.logger.warning(f"Command {i}: missing trigger, skipping")
@@ -60,25 +59,25 @@ class VoiceCommandManager:
             valid.append(cmd)
         return valid
 
-    def match_command(self, text: str) -> Optional[dict]:
-        normalized = re.sub(r'[^\w\s]', '', text.lower()).strip()
+    def match_command(self, text: str) -> dict | None:
+        normalized = re.sub(r"[^\w\s]", "", text.lower()).strip()
 
         for command in self.commands:
-            trigger = command.get('trigger', '').lower()
+            trigger = command.get("trigger", "").lower()
             if trigger and trigger in normalized:
                 return command
 
         return None
 
     def execute_command(self, command: dict, use_auto_enter: bool = False):
-        trigger = command.get('trigger', '')
+        trigger = command.get("trigger", "")
 
-        if 'run' in command:
-            self._execute_shell(command['run'], trigger)
-        elif 'hotkey' in command:
-            self._send_hotkey(command['hotkey'], trigger)
-        elif 'type' in command:
-            self._deliver_text(command['type'], trigger, use_auto_enter)
+        if "run" in command:
+            self._execute_shell(command["run"], trigger)
+        elif "hotkey" in command:
+            self._send_hotkey(command["hotkey"], trigger)
+        elif "type" in command:
+            self._deliver_text(command["type"], trigger, use_auto_enter)
 
     def _execute_shell(self, run_str: str, trigger: str):
         try:
@@ -90,7 +89,7 @@ class VoiceCommandManager:
             print(f"   Failed to execute command: {e}")
 
     def _send_hotkey(self, hotkey_str: str, trigger: str):
-        keys = [k.strip() for k in hotkey_str.lower().split('+')]
+        keys = [k.strip() for k in hotkey_str.lower().split("+")]
         try:
             keyboard.send_hotkey(*keys)
             self.logger.info(f"Sent hotkey '{trigger}': {hotkey_str}")
@@ -110,7 +109,7 @@ class VoiceCommandManager:
                 print(f"   ✓ Typed: {text}")
             else:
                 self.logger.error("No clipboard manager available for type command")
-                print(f"   Failed: clipboard manager not available")
+                print("   Failed: clipboard manager not available")
         except Exception as e:
             self.logger.error(f"Failed to deliver text '{trigger}': {e}")
             print(f"   Failed to deliver text: {e}")

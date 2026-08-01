@@ -1,9 +1,11 @@
 from pathlib import Path
+
 from PIL import Image
 
 from ...utils import resolve_asset_path
 
 ASSETS_DIR = Path(resolve_asset_path("platform/windows/assets"))
+
 
 def get_tray_icons() -> dict:
     return {

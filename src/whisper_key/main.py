@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+# ruff: noqa: E402
 
 from .utils import setup_portaudio_path
+
 setup_portaudio_path()
 
 import argparse
@@ -10,144 +12,152 @@ import signal
 import sys
 import threading
 
-from .platform import app, permissions, console
-from .config_manager import ConfigManager
-from .audio_recorder import AudioRecorder
-from .hotkey_listener import HotkeyListener
-from .whisper_engine import WhisperEngine
-from .voice_activity_detection import VadManager
-from .clipboard_manager import ClipboardManager
-from .state_manager import StateManager
-from .system_tray import SystemTray
 from .audio_feedback import AudioFeedback
-from .meeting_recorder import MeetingRecorder
-from .meeting_live_transcriber import MeetingLiveTranscriber
-
-from .instance_manager import guard_against_multiple_instances
-from .model_registry import ModelRegistry
-from .streaming_manager import StreamingManager
-from .voice_commands import VoiceCommandManager
+from .audio_recorder import AudioRecorder
+from .clipboard_manager import ClipboardManager
+from .config_manager import ConfigManager
 from .hardware_detection import detect_and_print as detect_hardware
+from .hotkey_listener import HotkeyListener
+from .instance_manager import guard_against_multiple_instances
+from .meeting_live_transcriber import MeetingLiveTranscriber
+from .meeting_recorder import MeetingRecorder
+from .model_registry import ModelRegistry
 from .onboarding import check_gpu
+from .platform import app, console, permissions
+from .state_manager import StateManager
+from .streaming_manager import StreamingManager
+from .system_tray import SystemTray
 from .update_checker import check_for_updates
 from .utils import get_user_app_data_path, get_version
+from .voice_activity_detection import VadManager
+from .voice_commands import VoiceCommandManager
+from .whisper_engine import WhisperEngine
+
 
 def setup_logging(config_manager: ConfigManager):
     log_config = config_manager.get_logging_config()
-    
+
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)  # Set to lowest level, handlers will filter
-    
+
     root_logger.handlers.clear()
-    
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    if log_config['file']['enabled']:
+
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+    if log_config["file"]["enabled"]:
         whisperkey_dir = get_user_app_data_path()
-        log_file_path = os.path.join(whisperkey_dir, log_config['file']['filename'])
-        file_handler = logging.FileHandler(log_file_path, encoding='utf-8')
-        file_handler.setLevel(getattr(logging, log_config['level']))
+        log_file_path = os.path.join(whisperkey_dir, log_config["file"]["filename"])
+        file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
+        file_handler.setLevel(getattr(logging, log_config["level"]))
         file_handler.setFormatter(formatter)
         root_logger.addHandler(file_handler)
-    
-    if log_config['console']['enabled']:
+
+    if log_config["console"]["enabled"]:
         console_handler = logging.StreamHandler()
-        console_level = log_config['console'].get('level', 'WARNING')
+        console_level = log_config["console"].get("level", "WARNING")
         console_handler.setLevel(getattr(logging, console_level))
         console_handler.setFormatter(formatter)
         root_logger.addHandler(console_handler)
+
 
 def setup_exception_handler():
     def exception_handler(exc_type, exc_value, exc_traceback):
         if issubclass(exc_type, KeyboardInterrupt):
             sys.__excepthook__(exc_type, exc_value, exc_traceback)
             return
-        
-        logging.getLogger().error("Uncaught exception", 
-                                 exc_info=(exc_type, exc_value, exc_traceback))
-    
+
+        logging.getLogger().error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
     sys.excepthook = exception_handler
+
 
 def setup_audio_recorder(audio_config, state_manager, vad_manager, streaming_manager):
     return AudioRecorder(
-        channels=audio_config['channels'],
-        dtype=audio_config['dtype'],
-        max_duration=audio_config['max_duration'],
+        channels=audio_config["channels"],
+        dtype=audio_config["dtype"],
+        max_duration=audio_config["max_duration"],
         on_max_duration_reached=state_manager.handle_max_recording_duration_reached,
         on_vad_event=state_manager.handle_vad_event,
         vad_manager=vad_manager,
         streaming_manager=streaming_manager,
         on_streaming_result=state_manager.handle_streaming_result,
-        device=audio_config['input_device']
+        device=audio_config["input_device"],
     )
+
 
 def setup_vad(vad_config):
     return VadManager(
-        vad_precheck_enabled=vad_config['vad_precheck_enabled'],
-        vad_realtime_enabled=vad_config['vad_realtime_enabled'],
-        vad_onset_threshold=vad_config['vad_onset_threshold'],
-        vad_offset_threshold=vad_config['vad_offset_threshold'],
-        vad_min_speech_duration=vad_config['vad_min_speech_duration'],
-        vad_silence_timeout_seconds=vad_config['vad_silence_timeout_seconds']
+        vad_precheck_enabled=vad_config["vad_precheck_enabled"],
+        vad_realtime_enabled=vad_config["vad_realtime_enabled"],
+        vad_onset_threshold=vad_config["vad_onset_threshold"],
+        vad_offset_threshold=vad_config["vad_offset_threshold"],
+        vad_min_speech_duration=vad_config["vad_min_speech_duration"],
+        vad_silence_timeout_seconds=vad_config["vad_silence_timeout_seconds"],
     )
+
 
 def setup_streaming(streaming_config, model_registry):
     return StreamingManager(
-        streaming_enabled=streaming_config.get('streaming_enabled', False),
-        streaming_model=streaming_config.get('streaming_model', 'standard'),
-        model_registry=model_registry
+        streaming_enabled=streaming_config.get("streaming_enabled", False),
+        streaming_model=streaming_config.get("streaming_model", "standard"),
+        model_registry=model_registry,
     )
+
 
 def setup_whisper_engine(whisper_config, vad_manager, model_registry, log_transcriptions=False, config_manager=None):
     try:
         return WhisperEngine(
-            model_key=whisper_config['model'],
-            device=whisper_config['device'],
-            compute_type=whisper_config['compute_type'],
-            language=whisper_config['language'],
-            beam_size=whisper_config['beam_size'],
-            initial_prompt=whisper_config.get('initial_prompt', ''),
-            hotwords=whisper_config.get('hotwords', []),
-            strip_trailing_period=whisper_config.get('strip_trailing_period', False),
+            model_key=whisper_config["model"],
+            device=whisper_config["device"],
+            compute_type=whisper_config["compute_type"],
+            language=whisper_config["language"],
+            beam_size=whisper_config["beam_size"],
+            initial_prompt=whisper_config.get("initial_prompt", ""),
+            hotwords=whisper_config.get("hotwords", []),
+            strip_trailing_period=whisper_config.get("strip_trailing_period", False),
             vad_manager=vad_manager,
             model_registry=model_registry,
-            log_transcriptions=log_transcriptions
+            log_transcriptions=log_transcriptions,
         )
     except RuntimeError as e:
-        if whisper_config['device'] != 'cuda' or not config_manager:
+        if whisper_config["device"] != "cuda" or not config_manager:
             raise
         return _handle_gpu_failure(e, whisper_config, vad_manager, model_registry, log_transcriptions, config_manager)
 
+
 def setup_clipboard_manager(clipboard_config):
     return ClipboardManager(
-        auto_paste=clipboard_config['auto_paste'],
-        delivery_method=clipboard_config['delivery_method'],
-        paste_hotkey=clipboard_config['paste_hotkey'],
-        paste_pre_paste_delay=clipboard_config['paste_pre_paste_delay'],
-        paste_preserve_clipboard=clipboard_config['paste_preserve_clipboard'],
-        paste_clipboard_restore_delay=clipboard_config['paste_clipboard_restore_delay'],
-        type_also_copy_to_clipboard=clipboard_config['type_also_copy_to_clipboard'],
-        type_auto_enter_delay=clipboard_config['type_auto_enter_delay'],
-        type_auto_enter_delay_per_100_chars=clipboard_config['type_auto_enter_delay_per_100_chars'],
-        macos_key_simulation_delay=clipboard_config['macos_key_simulation_delay']
+        auto_paste=clipboard_config["auto_paste"],
+        delivery_method=clipboard_config["delivery_method"],
+        paste_hotkey=clipboard_config["paste_hotkey"],
+        paste_pre_paste_delay=clipboard_config["paste_pre_paste_delay"],
+        paste_preserve_clipboard=clipboard_config["paste_preserve_clipboard"],
+        paste_clipboard_restore_delay=clipboard_config["paste_clipboard_restore_delay"],
+        type_also_copy_to_clipboard=clipboard_config["type_also_copy_to_clipboard"],
+        type_auto_enter_delay=clipboard_config["type_auto_enter_delay"],
+        type_auto_enter_delay_per_100_chars=clipboard_config["type_auto_enter_delay_per_100_chars"],
+        macos_key_simulation_delay=clipboard_config["macos_key_simulation_delay"],
     )
+
 
 def setup_audio_feedback(audio_feedback_config):
     return AudioFeedback(
-        enabled=audio_feedback_config['enabled'],
-        transcription_complete_enabled=audio_feedback_config['transcription_complete_enabled'],
-        start_sound=audio_feedback_config['start_sound'],
-        stop_sound=audio_feedback_config['stop_sound'],
-        cancel_sound=audio_feedback_config['cancel_sound'],
-        transcription_complete_sound=audio_feedback_config['transcription_complete_sound']
+        enabled=audio_feedback_config["enabled"],
+        transcription_complete_enabled=audio_feedback_config["transcription_complete_enabled"],
+        start_sound=audio_feedback_config["start_sound"],
+        stop_sound=audio_feedback_config["stop_sound"],
+        cancel_sound=audio_feedback_config["cancel_sound"],
+        transcription_complete_sound=audio_feedback_config["transcription_complete_sound"],
     )
+
 
 def setup_voice_commands(voice_commands_config, clipboard_manager, log_transcriptions=False):
     return VoiceCommandManager(
-        enabled=voice_commands_config['enabled'],
+        enabled=voice_commands_config["enabled"],
         clipboard_manager=clipboard_manager,
-        log_transcriptions=log_transcriptions
+        log_transcriptions=log_transcriptions,
     )
+
 
 def setup_system_tray(tray_config, config_manager, state_manager, model_registry, console_config=None):
     return SystemTray(
@@ -155,23 +165,25 @@ def setup_system_tray(tray_config, config_manager, state_manager, model_registry
         tray_config=tray_config,
         config_manager=config_manager,
         model_registry=model_registry,
-        console_config=console_config
+        console_config=console_config,
     )
 
+
 def run_gpu_onboarding(config_manager, whisper_config):
-    gpu_status = config_manager.config.get('onboarding', {}).get('gpu', 'pending')
-    if gpu_status != 'pending':
+    gpu_status = config_manager.config.get("onboarding", {}).get("gpu", "pending")
+    if gpu_status != "pending":
         return whisper_config
-    gpu_class, gpu_name, ct2_works = detect_hardware(whisper_config['device'])
-    check_gpu(gpu_class, gpu_name, ct2_works, whisper_config['device'], config_manager)
+    gpu_class, gpu_name, ct2_works = detect_hardware(whisper_config["device"])
+    check_gpu(gpu_class, gpu_name, ct2_works, whisper_config["device"], config_manager)
     return config_manager.get_whisper_config()
 
 
 def _handle_gpu_failure(error, whisper_config, vad_manager, model_registry, log_transcriptions, config_manager):
     from .onboarding import handle_gpu_failure
+
     handle_gpu_failure(error, config_manager)
-    whisper_config['device'] = 'cpu'
-    whisper_config['compute_type'] = 'int8'
+    whisper_config["device"] = "cpu"
+    whisper_config["compute_type"] = "int8"
     return setup_whisper_engine(whisper_config, vad_manager, model_registry, log_transcriptions)
 
 
@@ -182,22 +194,29 @@ def setup_signal_handlers(shutdown_event):
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+
 def setup_hotkey_listener(hotkey_config, state_manager, voice_commands_enabled=True):
     return HotkeyListener(
         state_manager=state_manager,
-        recording_hotkey=hotkey_config['recording_hotkey'],
-        stop_key=hotkey_config['stop_key'],
-        auto_send_key=hotkey_config.get('auto_send_key'),
-        cancel_combination=hotkey_config.get('cancel_combination'),
-        command_hotkey=hotkey_config.get('command_hotkey') if voice_commands_enabled else None,
-        meeting_hotkey=hotkey_config.get('meeting_hotkey'),
-        meeting_continuous_hotkey=hotkey_config.get('meeting_continuous_hotkey'),
-        meeting_mic_only_hotkey=hotkey_config.get('meeting_mic_only_hotkey'),
-        meeting_sys_only_hotkey=hotkey_config.get('meeting_sys_only_hotkey'),
-        recording_mode=hotkey_config.get('recording_mode', 'toggle')
+        recording_hotkey=hotkey_config["recording_hotkey"],
+        stop_key=hotkey_config["stop_key"],
+        auto_send_key=hotkey_config.get("auto_send_key"),
+        cancel_combination=hotkey_config.get("cancel_combination"),
+        command_hotkey=hotkey_config.get("command_hotkey") if voice_commands_enabled else None,
+        meeting_hotkey=hotkey_config.get("meeting_hotkey"),
+        meeting_continuous_hotkey=hotkey_config.get("meeting_continuous_hotkey"),
+        meeting_mic_only_hotkey=hotkey_config.get("meeting_mic_only_hotkey"),
+        meeting_sys_only_hotkey=hotkey_config.get("meeting_sys_only_hotkey"),
+        recording_mode=hotkey_config.get("recording_mode", "toggle"),
     )
 
-def shutdown_app(hotkey_listener: HotkeyListener, state_manager: StateManager, logger: logging.Logger):
+
+def shutdown_app(
+    hotkey_listener: HotkeyListener | None,
+    state_manager: StateManager | None,
+    logger: logging.Logger | None,
+):
+    logger = logger or logging.getLogger(__name__)
     try:
         if hotkey_listener and hotkey_listener.is_active():
             logger.info("Stopping hotkey listener...")
@@ -208,30 +227,32 @@ def shutdown_app(hotkey_listener: HotkeyListener, state_manager: StateManager, l
     if state_manager:
         state_manager.shutdown()
 
+
 def main():
     console.setup()
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stdout.write("\033]0;Whisper Key\007")
     sys.stdout.flush()
     app.setup()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test', action='store_true', help='Run as separate test instance')
+    parser.add_argument("--test", action="store_true", help="Run as separate test instance")
     args = parser.parse_args()
 
     instance_name = "WhisperKeyLocal_test" if args.test else "WhisperKeyLocal"
-    mutex_handle = guard_against_multiple_instances(instance_name)
+    # Retain the handle for the process lifetime; releasing it early would allow a duplicate instance.
+    _mutex_handle = guard_against_multiple_instances(instance_name)
 
     mode_label = " [TEST]" if args.test else ""
     print(f"Starting Whisper Key [{get_version()}]{mode_label}...")
-    
+
     shutdown_event = threading.Event()
     setup_signal_handlers(shutdown_event)
-    
+
     hotkey_listener = None
     state_manager = None
     logger = None
-    
+
     try:
         config_manager = ConfigManager()
         setup_logging(config_manager)
@@ -251,17 +272,23 @@ def main():
         voice_commands_config = config_manager.get_voice_commands_config()
         console_config = config_manager.get_console_config()
         log_config = config_manager.get_logging_config()
-        log_transcriptions = log_config.get('log_transcriptions', False)
+        log_transcriptions = log_config.get("log_transcriptions", False)
 
         whisper_config = run_gpu_onboarding(config_manager, whisper_config)
 
         model_registry = ModelRegistry(
-            whisper_models_config=whisper_config.get('models', {}),
-            streaming_models_config=streaming_config.get('models', {})
+            whisper_models_config=whisper_config.get("models", {}),
+            streaming_models_config=streaming_config.get("models", {}),
         )
         vad_manager = setup_vad(vad_config)
         streaming_manager = setup_streaming(streaming_config, model_registry)
-        whisper_engine = setup_whisper_engine(whisper_config, vad_manager, model_registry, log_transcriptions, config_manager)
+        whisper_engine = setup_whisper_engine(
+            whisper_config,
+            vad_manager,
+            model_registry,
+            log_transcriptions,
+            config_manager,
+        )
         streaming_manager.initialize()
         clipboard_manager = setup_clipboard_manager(clipboard_config)
         audio_feedback = setup_audio_feedback(audio_feedback_config)
@@ -269,7 +296,7 @@ def main():
         meeting_capture_config = config_manager.get_meeting_capture_config()
         meeting_live_transcriber = MeetingLiveTranscriber(
             whisper_engine=whisper_engine,
-            auto_stop_silence_seconds=meeting_capture_config.get('auto_stop_silence_seconds', 0),
+            auto_stop_silence_seconds=meeting_capture_config.get("auto_stop_silence_seconds", 0),
         )
 
         state_manager = StateManager(
@@ -292,12 +319,12 @@ def main():
         audio_recorder = setup_audio_recorder(audio_config, state_manager, vad_manager, streaming_manager)
         system_tray = setup_system_tray(tray_config, config_manager, state_manager, model_registry, console_config)
         state_manager.attach_components(audio_recorder, system_tray)
-        
-        hotkey_listener = setup_hotkey_listener(hotkey_config, state_manager, voice_commands_config['enabled'])
+
+        hotkey_listener = setup_hotkey_listener(hotkey_config, state_manager, voice_commands_config["enabled"])
 
         system_tray.start()
 
-        if clipboard_config['auto_paste']:
+        if clipboard_config["auto_paste"]:
             if not permissions.check_accessibility_permission():
                 if not permissions.handle_missing_permission(config_manager):
                     app.run_event_loop(shutdown_event)
@@ -311,17 +338,18 @@ def main():
         system_tray.apply_console_settings()
 
         app.run_event_loop(shutdown_event)
-            
+
     except KeyboardInterrupt:
-        logger.info("Application shutting down...")
+        (logger or logging.getLogger(__name__)).info("Application shutting down...")
         print("\nShutting down application...")
-        
+
     except Exception as e:
-        logger.error(f"Unexpected error: {e}", exc_info=True)
+        (logger or logging.getLogger(__name__)).error(f"Unexpected error: {e}", exc_info=True)
         print(f"Error occurred: {e}")
-        
+
     finally:
         shutdown_app(hotkey_listener, state_manager, logger)
+
 
 if __name__ == "__main__":
     main()
