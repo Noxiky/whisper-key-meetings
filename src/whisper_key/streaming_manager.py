@@ -1,6 +1,7 @@
 import logging
 import threading
-from typing import TYPE_CHECKING, Optional, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from .streaming_recognizer import StreamingRecognizer
 
@@ -9,9 +10,7 @@ if TYPE_CHECKING:
 
 
 class ContinuousStreamingRecognizer:
-    def __init__(self,
-                 recognizer: StreamingRecognizer,
-                 result_callback: Optional[Callable[[str, bool], None]] = None):
+    def __init__(self, recognizer: StreamingRecognizer, result_callback: Callable[[str, bool], None] | None = None):
         self.recognizer = recognizer
         self.result_callback = result_callback
         self.last_text = ""
@@ -52,14 +51,13 @@ class ContinuousStreamingRecognizer:
 
 
 class StreamingManager:
-    def __init__(self,
-                 streaming_enabled: bool = False,
-                 streaming_model: str = "standard",
-                 model_registry: "ModelRegistry" = None):
+    def __init__(
+        self, streaming_enabled: bool = False, streaming_model: str = "standard", model_registry: "ModelRegistry" = None
+    ):
         self.streaming_enabled = streaming_enabled
         self.streaming_model = streaming_model
         self.model_registry = model_registry
-        self.recognizer: Optional[StreamingRecognizer] = None
+        self.recognizer: StreamingRecognizer | None = None
         self._model_loaded = False
         self.logger = logging.getLogger(__name__)
 
@@ -74,10 +72,7 @@ class StreamingManager:
         if self._model_loaded:
             return True
 
-        self.recognizer = StreamingRecognizer(
-            model_type=self.streaming_model,
-            model_registry=self.model_registry
-        )
+        self.recognizer = StreamingRecognizer(model_type=self.streaming_model, model_registry=self.model_registry)
         success = self.recognizer.load_model()
 
         if success:
@@ -93,13 +88,10 @@ class StreamingManager:
     def is_available(self) -> bool:
         return self.streaming_enabled and self._model_loaded and self.recognizer is not None
 
-    def create_continuous_recognizer(self,
-                                      result_callback: Optional[Callable[[str, bool], None]] = None
-                                      ) -> Optional[ContinuousStreamingRecognizer]:
+    def create_continuous_recognizer(
+        self, result_callback: Callable[[str, bool], None] | None = None
+    ) -> ContinuousStreamingRecognizer | None:
         if not self.is_available():
             return None
 
-        return ContinuousStreamingRecognizer(
-            recognizer=self.recognizer,
-            result_callback=result_callback
-        )
+        return ContinuousStreamingRecognizer(recognizer=self.recognizer, result_callback=result_callback)

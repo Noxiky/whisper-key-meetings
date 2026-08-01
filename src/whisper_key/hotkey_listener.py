@@ -6,14 +6,22 @@ from .state_manager import StateManager
 
 POST_STOP_COOLDOWN_SECONDS = 0.6
 
+
 class HotkeyListener:
-    def __init__(self, state_manager: StateManager, recording_hotkey: str, stop_key: str,
-                 auto_send_key: str = None, cancel_combination: str = None,
-                 command_hotkey: str = None, meeting_hotkey: str = None,
-                 meeting_continuous_hotkey: str = None,
-                 meeting_mic_only_hotkey: str = None,
-                 meeting_sys_only_hotkey: str = None,
-                 recording_mode: str = "toggle"):
+    def __init__(
+        self,
+        state_manager: StateManager,
+        recording_hotkey: str,
+        stop_key: str,
+        auto_send_key: str = None,
+        cancel_combination: str = None,
+        command_hotkey: str = None,
+        meeting_hotkey: str = None,
+        meeting_continuous_hotkey: str = None,
+        meeting_mic_only_hotkey: str = None,
+        meeting_sys_only_hotkey: str = None,
+        recording_mode: str = "toggle",
+    ):
         self.state_manager = state_manager
         self.recording_hotkey = recording_hotkey
         self.stop_key = stop_key
@@ -38,107 +46,116 @@ class HotkeyListener:
         hotkey_configs = []
 
         if self.recording_mode == "push_to_talk":
-            hotkey_configs.append({
-                'combination': self.recording_hotkey,
-                'callback': self._standard_hotkey_pressed,
-                'release_callback': self._push_to_talk_released,
-                'name': 'standard (push-to-talk)'
-            })
+            hotkey_configs.append(
+                {
+                    "combination": self.recording_hotkey,
+                    "callback": self._standard_hotkey_pressed,
+                    "release_callback": self._push_to_talk_released,
+                    "name": "standard (push-to-talk)",
+                }
+            )
         else:
-            hotkey_configs.append({
-                'combination': self.recording_hotkey,
-                'callback': self._standard_hotkey_pressed,
-                'release_callback': self._arm_keys_on_release,
-                'name': 'standard'
-            })
+            hotkey_configs.append(
+                {
+                    "combination": self.recording_hotkey,
+                    "callback": self._standard_hotkey_pressed,
+                    "release_callback": self._arm_keys_on_release,
+                    "name": "standard",
+                }
+            )
 
-        hotkey_configs.append({
-            'combination': self.stop_key,
-            'callback': self._stop_key_pressed,
-            'release_callback': self._arm_keys_on_release,
-            'name': 'stop'
-        })
+        hotkey_configs.append(
+            {
+                "combination": self.stop_key,
+                "callback": self._stop_key_pressed,
+                "release_callback": self._arm_keys_on_release,
+                "name": "stop",
+            }
+        )
 
         if self.auto_send_key:
-            hotkey_configs.append({
-                'combination': self.auto_send_key,
-                'callback': self._auto_send_key_pressed,
-                'release_callback': self._arm_keys_on_release,
-                'name': 'auto-send'
-            })
+            hotkey_configs.append(
+                {
+                    "combination": self.auto_send_key,
+                    "callback": self._auto_send_key_pressed,
+                    "release_callback": self._arm_keys_on_release,
+                    "name": "auto-send",
+                }
+            )
 
         if self.cancel_combination:
-            hotkey_configs.append({
-                'combination': self.cancel_combination,
-                'callback': self._cancel_hotkey_pressed,
-                'name': 'cancel'
-            })
+            hotkey_configs.append(
+                {"combination": self.cancel_combination, "callback": self._cancel_hotkey_pressed, "name": "cancel"}
+            )
 
         if self.command_hotkey:
             if self.recording_mode == "push_to_talk":
-                hotkey_configs.append({
-                    'combination': self.command_hotkey,
-                    'callback': self._command_hotkey_pressed,
-                    'release_callback': self._push_to_talk_released,
-                    'name': 'command (push-to-talk)'
-                })
+                hotkey_configs.append(
+                    {
+                        "combination": self.command_hotkey,
+                        "callback": self._command_hotkey_pressed,
+                        "release_callback": self._push_to_talk_released,
+                        "name": "command (push-to-talk)",
+                    }
+                )
             else:
-                hotkey_configs.append({
-                    'combination': self.command_hotkey,
-                    'callback': self._command_hotkey_pressed,
-                    'name': 'command'
-                })
+                hotkey_configs.append(
+                    {"combination": self.command_hotkey, "callback": self._command_hotkey_pressed, "name": "command"}
+                )
 
         if self.meeting_hotkey:
-            hotkey_configs.append({
-                'combination': self.meeting_hotkey,
-                'callback': self._meeting_hotkey_pressed,
-                'release_callback': self._arm_keys_on_release,
-                'name': 'meeting listener'
-            })
+            hotkey_configs.append(
+                {
+                    "combination": self.meeting_hotkey,
+                    "callback": self._meeting_hotkey_pressed,
+                    "release_callback": self._arm_keys_on_release,
+                    "name": "meeting listener",
+                }
+            )
 
         if self.meeting_continuous_hotkey:
-            hotkey_configs.append({
-                'combination': self.meeting_continuous_hotkey,
-                'callback': self._meeting_continuous_hotkey_pressed,
-                'release_callback': self._arm_keys_on_release,
-                'name': 'meeting continuous'
-            })
+            hotkey_configs.append(
+                {
+                    "combination": self.meeting_continuous_hotkey,
+                    "callback": self._meeting_continuous_hotkey_pressed,
+                    "release_callback": self._arm_keys_on_release,
+                    "name": "meeting continuous",
+                }
+            )
 
         if self.meeting_mic_only_hotkey:
-            hotkey_configs.append({
-                'combination': self.meeting_mic_only_hotkey,
-                'callback': self._meeting_mic_only_hotkey_pressed,
-                'release_callback': self._arm_keys_on_release,
-                'name': 'meeting mic-only'
-            })
+            hotkey_configs.append(
+                {
+                    "combination": self.meeting_mic_only_hotkey,
+                    "callback": self._meeting_mic_only_hotkey_pressed,
+                    "release_callback": self._arm_keys_on_release,
+                    "name": "meeting mic-only",
+                }
+            )
 
         if self.meeting_sys_only_hotkey:
-            hotkey_configs.append({
-                'combination': self.meeting_sys_only_hotkey,
-                'callback': self._meeting_sys_only_hotkey_pressed,
-                'release_callback': self._arm_keys_on_release,
-                'name': 'meeting sys-only'
-            })
+            hotkey_configs.append(
+                {
+                    "combination": self.meeting_sys_only_hotkey,
+                    "callback": self._meeting_sys_only_hotkey_pressed,
+                    "release_callback": self._arm_keys_on_release,
+                    "name": "meeting sys-only",
+                }
+            )
 
         hotkey_configs.sort(key=self._get_hotkey_combination_specificity, reverse=True)
 
         self.hotkey_bindings = []
         for config in hotkey_configs:
-            hotkey = config['combination'].lower().strip()
-            self.hotkey_bindings.append([
-                hotkey,
-                config['callback'],
-                config.get('release_callback') or None,
-                False
-            ])
+            hotkey = config["combination"].lower().strip()
+            self.hotkey_bindings.append([hotkey, config["callback"], config.get("release_callback") or None, False])
             self.logger.info(f"Configured {config['name']} hotkey: {hotkey}")
 
         self.logger.info(f"Total hotkeys configured: {len(self.hotkey_bindings)}")
 
     def _get_hotkey_combination_specificity(self, hotkey_config: dict) -> int:
-        combination = hotkey_config['combination'].lower()
-        return len(combination.split('+'))
+        combination = hotkey_config["combination"].lower()
+        return len(combination.split("+"))
 
     def _standard_hotkey_pressed(self):
         if time.monotonic() - self._last_stop_at < POST_STOP_COOLDOWN_SECONDS:
@@ -255,7 +272,18 @@ class HotkeyListener:
             self.logger.error(f"Error stopping hotkey listener: {e}")
 
     def change_hotkey_config(self, setting: str, value):
-        valid_settings = ['recording_hotkey', 'stop_key', 'auto_send_key', 'cancel_combination', 'command_hotkey', 'meeting_hotkey', 'meeting_continuous_hotkey', 'meeting_mic_only_hotkey', 'meeting_sys_only_hotkey', 'recording_mode']
+        valid_settings = [
+            "recording_hotkey",
+            "stop_key",
+            "auto_send_key",
+            "cancel_combination",
+            "command_hotkey",
+            "meeting_hotkey",
+            "meeting_continuous_hotkey",
+            "meeting_mic_only_hotkey",
+            "meeting_sys_only_hotkey",
+            "recording_mode",
+        ]
 
         if setting not in valid_settings:
             raise ValueError(f"Invalid setting '{setting}'. Valid options: {valid_settings}")
@@ -271,6 +299,36 @@ class HotkeyListener:
         self.stop_listening()
         self._setup_hotkeys()
         self.start_listening()
+
+    def replace_hotkey_config(self, values: dict) -> None:
+        valid_settings = {
+            "recording_hotkey",
+            "stop_key",
+            "auto_send_key",
+            "cancel_combination",
+            "command_hotkey",
+            "meeting_hotkey",
+            "meeting_continuous_hotkey",
+            "meeting_mic_only_hotkey",
+            "meeting_sys_only_hotkey",
+            "recording_mode",
+        }
+        unknown = set(values) - valid_settings
+        if unknown:
+            raise ValueError(f"Invalid hotkey settings: {sorted(unknown)}")
+        previous = {setting: getattr(self, setting) for setting in values}
+        self.stop_listening()
+        try:
+            for setting, value in values.items():
+                setattr(self, setting, value)
+            self._setup_hotkeys()
+            self.start_listening()
+        except Exception:
+            for setting, value in previous.items():
+                setattr(self, setting, value)
+            self._setup_hotkeys()
+            self.start_listening()
+            raise
 
     def is_active(self) -> bool:
         return self.is_listening

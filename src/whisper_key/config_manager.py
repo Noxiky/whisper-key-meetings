@@ -1,14 +1,15 @@
-import os
-import sys
 import copy
 import logging
-from typing import Dict, Any, Optional
+import os
+import sys
+import tempfile
 from io import StringIO
+from typing import Any
 
 from ruamel.yaml import YAML
 
-from .utils import resolve_asset_path, beautify_hotkey, get_user_app_data_path, get_version
 from .platform import IS_MACOS
+from .utils import beautify_hotkey, get_user_app_data_path, get_version, resolve_asset_path
 
 REPO_URL = "https://github.com/PinW/whisper-key-local"
 
@@ -35,10 +36,11 @@ def _build_settings_header():
         "\n"
     )
 
-EXTENSIBLE_PATHS = {'whisper.models', 'streaming.models'}
 
-def deep_merge_config(default_config: Dict[str, Any],
-                      user_config: Dict[str, Any]) -> Dict[str, Any]:
+EXTENSIBLE_PATHS = {"whisper.models", "streaming.models"}
+
+
+def deep_merge_config(default_config: dict[str, Any], user_config: dict[str, Any]) -> dict[str, Any]:
 
     result = default_config.copy()
 
@@ -59,7 +61,7 @@ def _to_plain(obj):
     return obj
 
 
-def _compute_overrides(config, defaults, path_prefix=''):
+def _compute_overrides(config, defaults, path_prefix=""):
     overrides = {}
     for key, value in config.items():
         current_path = f"{path_prefix}.{key}" if path_prefix else key
@@ -77,47 +79,46 @@ def _compute_overrides(config, defaults, path_prefix=''):
 
 
 def _parse_platform_value(value: str) -> str:
-    parts = value.split(' | macos:')
+    parts = value.split(" | macos:")
     default_value = parts[0].strip()
     macos_value = parts[1].strip() if len(parts) > 1 else default_value
     return macos_value if IS_MACOS else default_value
 
 
-def _resolve_platform_values(config: Dict[str, Any]) -> Dict[str, Any]:
+def _resolve_platform_values(config: dict[str, Any]) -> dict[str, Any]:
     for key, value in config.items():
         if isinstance(value, dict):
             _resolve_platform_values(value)
-        elif isinstance(value, str) and ' | macos:' in value:
+        elif isinstance(value, str) and " | macos:" in value:
             config[key] = _parse_platform_value(value)
     return config
 
 
-class ConfigManager:   
+class ConfigManager:
     def __init__(self, config_path: str = None, use_user_settings: bool = True):
         if config_path is None:
             config_path = resolve_asset_path("config.defaults.yaml")
-        
+
         self.default_config_path = config_path
         self.use_user_settings = use_user_settings
         self.config = {}
         self.logger = logging.getLogger(__name__)
-        
+
         self.config_path = self._determine_config_path(use_user_settings, config_path)
-        
+
         self.config = self._load_config()
         self._print_config_status()
 
         self.logger.info("Configuration loaded successfully")
-    
+
     def _determine_config_path(self, use_user_settings: bool, config_path: str) -> str:
         if use_user_settings:
             whisperkey_dir = get_user_app_data_path()
-            self.user_settings_path = os.path.join(whisperkey_dir, 'user_settings.yaml')
+            self.user_settings_path = os.path.join(whisperkey_dir, "user_settings.yaml")
             return self.user_settings_path
         else:
             return config_path
-    
-    
+
     def _ensure_user_settings_exist(self):
         user_settings_dir = os.path.dirname(self.user_settings_path)
 
@@ -125,11 +126,11 @@ class ConfigManager:
             os.makedirs(user_settings_dir, exist_ok=True)
 
         if not os.path.exists(self.user_settings_path):
-            with open(self.user_settings_path, 'w', encoding='utf-8') as f:
+            with open(self.user_settings_path, "w", encoding="utf-8") as f:
                 f.write(_build_settings_header())
             self.logger.info(f"Created user settings at {self.user_settings_path}")
-    
-    def _remove_unused_keys_from_user_config(self, user_config: Dict[str, Any], default_config: Dict[str, Any]):
+
+    def _remove_unused_keys_from_user_config(self, user_config: dict[str, Any], default_config: dict[str, Any]):
 
         sections_to_remove = []
 
@@ -149,7 +150,7 @@ class ConfigManager:
 
         for section in sections_to_remove:
             del user_config[section]
-    
+
     def _load_config(self):
 
         default_config = self._load_default_config()
@@ -164,7 +165,7 @@ class ConfigManager:
 
             try:
                 yaml = YAML()
-                with open(self.config_path, 'r', encoding='utf-8') as file:
+                with open(self.config_path, encoding="utf-8") as file:
                     user_config = yaml.load(file)
 
                 if user_config is None:
@@ -189,20 +190,20 @@ class ConfigManager:
 
         self.logger.info(f"Using default configuration from {self.default_config_path}")
         return _resolve_platform_values(default_config)
-    
-    def _load_default_config(self) -> Dict[str, Any]:
+
+    def _load_default_config(self) -> dict[str, Any]:
         try:
             yaml = YAML()
-            with open(self.default_config_path, 'r', encoding='utf-8') as file:
+            with open(self.default_config_path, encoding="utf-8") as file:
                 default_config = yaml.load(file)
-            
+
             if default_config:
                 self.logger.info(f"Loaded default configuration from {self.default_config_path}")
                 return default_config
             else:
                 self.logger.error(f"Default config file {self.default_config_path} is empty")
                 raise ValueError("Default configuration is empty")
-                
+
         except Exception as e:
             if "YAML" in str(e):
                 self.logger.error(f"Error parsing default YAML config: {e}")
@@ -218,9 +219,24 @@ class ConfigManager:
         body = StringIO()
         yaml.dump(_to_plain(user_config), body)
 
-        with open(self.user_settings_path, 'w', encoding='utf-8') as f:
-            f.write(_build_settings_header())
-            f.write(body.getvalue())
+        target_dir = os.path.dirname(self.user_settings_path)
+        os.makedirs(target_dir, exist_ok=True)
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=".user_settings.",
+            suffix=".tmp",
+            dir=target_dir,
+            text=True,
+        )
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as f:
+                f.write(_build_settings_header())
+                f.write(body.getvalue())
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporary, self.user_settings_path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
 
     def _print_config_status(self):
         print("📁 Loading configuration...")
@@ -231,35 +247,35 @@ class ConfigManager:
             settings_file = os.path.basename(self.user_settings_path)
             print(f"   ✓ Local settings: {display_dir}{os.sep}{settings_file}")
 
-            if self.get_voice_commands_config().get('enabled', True):
+            if self.get_voice_commands_config().get("enabled", True):
                 print(f"   ✓ Voice commands: {display_dir}{os.sep}commands.yaml")
             else:
-                print(f"   ✓ Voice commands: disabled")
+                print("   ✓ Voice commands: disabled")
 
     def _display_path(self, path: str) -> str:
         if IS_MACOS:
             home = os.path.expanduser("~")
             if path.startswith(home):
-                return "~" + path[len(home):]
+                return "~" + path[len(home) :]
         else:
-            appdata = os.getenv('APPDATA', '')
+            appdata = os.getenv("APPDATA", "")
             if appdata and path.startswith(appdata):
-                return "%APPDATA%" + path[len(appdata):]
+                return "%APPDATA%" + path[len(appdata) :]
         return path
-    
+
     def _get_stop_key_display(self) -> str:
-        return beautify_hotkey(self.config['hotkey']['stop_key'])
+        return beautify_hotkey(self.config["hotkey"]["stop_key"])
 
     def print_stop_instructions_based_on_config(self):
-        recording_mode = self.config['hotkey'].get('recording_mode', 'toggle')
+        recording_mode = self.config["hotkey"].get("recording_mode", "toggle")
 
-        if recording_mode == 'push_to_talk':
+        if recording_mode == "push_to_talk":
             print("   Release key to stop and transcribe")
             return
 
         stop_key = self._get_stop_key_display()
-        auto_paste_enabled = self.config['clipboard']['auto_paste']
-        auto_send_key = self.config['hotkey'].get('auto_send_key', '')
+        auto_paste_enabled = self.config["clipboard"]["auto_paste"]
+        auto_send_key = self.config["hotkey"].get("auto_send_key", "")
 
         if auto_paste_enabled:
             print(f"   [{stop_key}] to stop and auto-paste")
@@ -270,90 +286,93 @@ class ConfigManager:
             print(f"   [{beautify_hotkey(auto_send_key)}] to auto-paste and send with ENTER")
 
     def print_startup_hotkey_instructions(self):
-        recording_hotkey = beautify_hotkey(self.config['hotkey']['recording_hotkey'])
-        recording_mode = self.config['hotkey'].get('recording_mode', 'toggle')
+        recording_hotkey = beautify_hotkey(self.config["hotkey"]["recording_hotkey"])
+        recording_mode = self.config["hotkey"].get("recording_mode", "toggle")
         mode_hint = " (hold to record)" if recording_mode == "push_to_talk" else ""
         print(f"   [{recording_hotkey}] for transcription{mode_hint}")
 
-        if self.get_voice_commands_config().get('enabled', True):
-            command_hotkey = self.config['hotkey'].get('command_hotkey')
+        if self.get_voice_commands_config().get("enabled", True):
+            command_hotkey = self.config["hotkey"].get("command_hotkey")
             if command_hotkey:
                 print(f"   [{beautify_hotkey(command_hotkey)}] for voice commands")
 
-        meeting_hotkey = self.config['hotkey'].get('meeting_hotkey')
+        meeting_hotkey = self.config["hotkey"].get("meeting_hotkey")
         if meeting_hotkey:
             print(f"   [{beautify_hotkey(meeting_hotkey)}] for meeting listener (mic + sys, auto-stop on silence)")
 
-        meeting_continuous = self.config['hotkey'].get('meeting_continuous_hotkey')
+        meeting_continuous = self.config["hotkey"].get("meeting_continuous_hotkey")
         if meeting_continuous:
             print(f"   [{beautify_hotkey(meeting_continuous)}] for continuous meeting (mic + sys, infinite)")
 
-        meeting_mic_only = self.config['hotkey'].get('meeting_mic_only_hotkey')
+        meeting_mic_only = self.config["hotkey"].get("meeting_mic_only_hotkey")
         if meeting_mic_only:
             print(f"   [{beautify_hotkey(meeting_mic_only)}] for mic-only continuous meeting")
 
-        meeting_sys_only = self.config['hotkey'].get('meeting_sys_only_hotkey')
+        meeting_sys_only = self.config["hotkey"].get("meeting_sys_only_hotkey")
         if meeting_sys_only:
             print(f"   [{beautify_hotkey(meeting_sys_only)}] for system-audio-only continuous meeting")
 
     def print_command_stop_instructions(self):
         stop_key = self._get_stop_key_display()
-        auto_send_key = self.config['hotkey'].get('auto_send_key', '')
+        auto_send_key = self.config["hotkey"].get("auto_send_key", "")
         keys = f"{stop_key}/{beautify_hotkey(auto_send_key)}" if auto_send_key else stop_key
         print(f"   [{keys}] to stop and execute command")
-    
-    def get_whisper_config(self) -> Dict[str, Any]:
-        return self.config['whisper'].copy()
-    
-    def get_hotkey_config(self) -> Dict[str, Any]:
-        return self.config['hotkey'].copy()
-    
-    def get_audio_config(self) -> Dict[str, Any]:
-        return self.config['audio'].copy()
 
-    def get_audio_host(self) -> Optional[str]:
-        return self.config['audio'].get('host')
-    
-    def get_clipboard_config(self) -> Dict[str, Any]:
-        return self.config['clipboard'].copy()
-    
-    def get_logging_config(self) -> Dict[str, Any]:
-        return self.config['logging'].copy()
-    
-    def get_vad_config(self) -> Dict[str, Any]:
-        return self.config['vad'].copy()
-    
-    def get_system_tray_config(self) -> Dict[str, Any]:
-        return self.config['system_tray'].copy()
-    
-    def get_audio_feedback_config(self) -> Dict[str, Any]:
-        return self.config['audio_feedback'].copy()
+    def get_whisper_config(self) -> dict[str, Any]:
+        return self.config["whisper"].copy()
 
-    def get_voice_commands_config(self) -> Dict[str, Any]:
-        return self.config.get('voice_commands', {}).copy()
+    def get_hotkey_config(self) -> dict[str, Any]:
+        return self.config["hotkey"].copy()
 
-    def get_console_config(self) -> Dict[str, Any]:
-        return self.config.get('console', {}).copy()
+    def get_audio_config(self) -> dict[str, Any]:
+        return self.config["audio"].copy()
 
-    def get_update_config(self) -> Dict[str, Any]:
-        return self.config.get('update', {}).copy()
+    def get_audio_host(self) -> str | None:
+        return self.config["audio"].get("host")
 
-    def get_streaming_config(self) -> Dict[str, Any]:
-        return self.config.get('streaming', {}).copy()
+    def get_clipboard_config(self) -> dict[str, Any]:
+        return self.config["clipboard"].copy()
 
-    def get_capture_config(self) -> Dict[str, Any]:
-        return self.config.get('capture', {}).copy()
+    def get_logging_config(self) -> dict[str, Any]:
+        return self.config["logging"].copy()
 
-    def get_meeting_capture_config(self) -> Dict[str, Any]:
-        return self.config.get('capture', {}).get('meeting', {}).copy()
+    def get_vad_config(self) -> dict[str, Any]:
+        return self.config["vad"].copy()
+
+    def get_system_tray_config(self) -> dict[str, Any]:
+        return self.config["system_tray"].copy()
+
+    def get_audio_feedback_config(self) -> dict[str, Any]:
+        return self.config["audio_feedback"].copy()
+
+    def get_voice_commands_config(self) -> dict[str, Any]:
+        return self.config.get("voice_commands", {}).copy()
+
+    def get_console_config(self) -> dict[str, Any]:
+        return self.config.get("console", {}).copy()
+
+    def get_update_config(self) -> dict[str, Any]:
+        return self.config.get("update", {}).copy()
+
+    def get_streaming_config(self) -> dict[str, Any]:
+        return self.config.get("streaming", {}).copy()
+
+    def get_capture_config(self) -> dict[str, Any]:
+        return self.config.get("capture", {}).copy()
+
+    def get_meeting_capture_config(self) -> dict[str, Any]:
+        return self.config.get("capture", {}).get("meeting", {}).copy()
+
+    def get_retention_config(self) -> dict[str, Any]:
+        return self.config.get("retention", {}).copy()
 
     def get_log_file_path(self) -> str:
-        log_filename = self.config['logging']['file']['filename']
+        log_filename = self.config["logging"]["file"]["filename"]
         return os.path.join(get_user_app_data_path(), log_filename)
 
     def get_setting(self, section: str, key: str) -> Any:
         return self.config[section][key]
-    
+
     def _save_user_overrides(self):
         try:
             overrides = _compute_overrides(self.config, self._defaults_baseline)
@@ -362,9 +381,9 @@ class ConfigManager:
         except Exception as e:
             self.logger.error(f"Error saving user overrides to {self.user_settings_path}: {e}")
             raise
-    
-    def update_audio_host(self, host_name: Optional[str]):
-        self.update_user_setting('audio', 'host', host_name)
+
+    def update_audio_host(self, host_name: str | None):
+        self.update_user_setting("audio", "host", host_name)
 
     def update_user_setting(self, section: str, key: str, value: Any):
         try:
@@ -384,9 +403,41 @@ class ConfigManager:
             self.logger.error(f"Error updating user setting {section}.{key}: {e}")
             raise
 
+    def update_user_settings(self, section: str, values: dict[str, Any]):
+        """Persist several related values as one coherent user-settings update."""
+        if section not in self.config or not isinstance(self.config[section], dict):
+            raise KeyError(section)
+        unknown = set(values) - set(self.config[section])
+        if unknown:
+            raise KeyError(f"Unknown settings in {section}: {sorted(unknown)}")
+        previous = {key: self.config[section][key] for key in values}
+        try:
+            self.config[section].update(values)
+            self._save_user_overrides()
+        except Exception:
+            self.config[section].update(previous)
+            raise
+
+    def update_user_paths(self, values: dict[str, Any]):
+        """Persist related values across nested sections as one atomic settings update."""
+        previous = {}
+        for path in values:
+            try:
+                previous[path] = _get_config_value_at_path(self.config, path)
+            except (KeyError, TypeError) as exc:
+                raise KeyError(f"Unknown setting path: {path}") from exc
+        try:
+            for path, value in values.items():
+                _set_config_value_at_path(self.config, path, value)
+            self._save_user_overrides()
+        except Exception:
+            for path, value in previous.items():
+                _set_config_value_at_path(self.config, path, value)
+            raise
+
 
 def _get_config_value_at_path(config_dict, path):
-    keys = path.split('.')
+    keys = path.split(".")
     current = config_dict
     for key in keys:
         current = current[key]
@@ -394,7 +445,7 @@ def _get_config_value_at_path(config_dict, path):
 
 
 def _set_config_value_at_path(config_dict, path, value):
-    keys = path.split('.')
+    keys = path.split(".")
     current = config_dict
     for key in keys[:-1]:
         current = current[key]
@@ -421,46 +472,91 @@ def _validate_numeric_range(config, default_config, path, logger, min_val=None, 
         _set_to_default(config, default_config, path, current_value, logger)
 
 
-def _resolve_hotkey_conflicts(config, default_config, stop_key, auto_send_key, recording_hotkey, command_hotkey, logger):
+def _resolve_hotkey_conflicts(
+    config,
+    default_config,
+    stop_key,
+    auto_send_key,
+    recording_hotkey,
+    command_hotkey,
+    logger,
+):
     if stop_key == auto_send_key:
         logger.warning(f"   ✗ Auto-send key disabled: '{auto_send_key}' conflicts with stop key")
-        _set_config_value_at_path(config, 'hotkey.auto_send_key', '')
+        _set_config_value_at_path(config, "hotkey.auto_send_key", "")
 
     if stop_key == recording_hotkey:
         logger.warning(f"   ✗ Stop key '{stop_key}' conflicts with recording hotkey, resetting to default")
-        _set_to_default(config, default_config, 'hotkey.stop_key', stop_key, logger)
+        _set_to_default(config, default_config, "hotkey.stop_key", stop_key, logger)
 
     if command_hotkey and command_hotkey == recording_hotkey:
         logger.warning(f"   ✗ Command hotkey disabled: '{command_hotkey}' conflicts with recording hotkey")
-        _set_config_value_at_path(config, 'hotkey.command_hotkey', '')
+        _set_config_value_at_path(config, "hotkey.command_hotkey", "")
 
 
 def validate_config(config, default_config, logger):
-    _validate_numeric_range(config, default_config, 'audio.max_duration', logger, min_val=0)
+    _validate_numeric_range(config, default_config, "audio.max_duration", logger, min_val=0)
 
-    _validate_numeric_range(config, default_config, 'vad.vad_onset_threshold', logger, min_val=0.0, max_val=1.0)
-    _validate_numeric_range(config, default_config, 'vad.vad_offset_threshold', logger, min_val=0.0, max_val=1.0)
-    _validate_numeric_range(config, default_config, 'vad.vad_min_speech_duration', logger, min_val=0.001, max_val=5.0)
-    _validate_numeric_range(config, default_config, 'vad.vad_silence_timeout_seconds', logger, min_val=1.0, max_val=36000.0)
+    _validate_numeric_range(config, default_config, "vad.vad_onset_threshold", logger, min_val=0.0, max_val=1.0)
+    _validate_numeric_range(config, default_config, "vad.vad_offset_threshold", logger, min_val=0.0, max_val=1.0)
+    _validate_numeric_range(config, default_config, "vad.vad_min_speech_duration", logger, min_val=0.001, max_val=5.0)
+    _validate_numeric_range(
+        config,
+        default_config,
+        "vad.vad_silence_timeout_seconds",
+        logger,
+        min_val=1.0,
+        max_val=36000.0,
+    )
 
-    recording_mode = _get_config_value_at_path(config, 'hotkey.recording_mode')
-    if recording_mode not in ('toggle', 'push_to_talk'):
-        _set_to_default(config, default_config, 'hotkey.recording_mode', recording_mode, logger)
+    recording_mode = _get_config_value_at_path(config, "hotkey.recording_mode")
+    if recording_mode not in ("toggle", "push_to_talk"):
+        _set_to_default(config, default_config, "hotkey.recording_mode", recording_mode, logger)
 
-    capture_mode = _get_config_value_at_path(config, 'capture.mode')
-    if capture_mode not in ('dictation', 'meeting'):
-        _set_to_default(config, default_config, 'capture.mode', capture_mode, logger)
+    capture_mode = _get_config_value_at_path(config, "capture.mode")
+    if capture_mode not in ("dictation", "meeting"):
+        _set_to_default(config, default_config, "capture.mode", capture_mode, logger)
 
-    _validate_numeric_range(config, default_config, 'capture.meeting.split_on_pause_seconds', logger, min_val=0.0, max_val=60.0)
+    _validate_numeric_range(
+        config,
+        default_config,
+        "capture.meeting.split_on_pause_seconds",
+        logger,
+        min_val=0.0,
+        max_val=60.0,
+    )
 
-    system_audio_backend = _get_config_value_at_path(config, 'capture.meeting.system_audio_backend')
-    if system_audio_backend not in ('auto', 'soundcard'):
-        _set_to_default(config, default_config, 'capture.meeting.system_audio_backend', system_audio_backend, logger)
+    system_audio_backend = _get_config_value_at_path(config, "capture.meeting.system_audio_backend")
+    if system_audio_backend not in ("auto", "soundcard"):
+        _set_to_default(config, default_config, "capture.meeting.system_audio_backend", system_audio_backend, logger)
 
-    stop_key = _get_config_value_at_path(config, 'hotkey.stop_key')
-    auto_send_key = _get_config_value_at_path(config, 'hotkey.auto_send_key')
-    recording_hotkey = _get_config_value_at_path(config, 'hotkey.recording_hotkey')
-    command_hotkey = _get_config_value_at_path(config, 'hotkey.command_hotkey')
+    retention_values = ("all", "until_verified", "marker_context", "none")
+    for mode in ("dictation", "meeting", "learning", "reading", "idea"):
+        path = f"retention.{mode}"
+        value = _get_config_value_at_path(config, path)
+        if value not in retention_values or (mode == "dictation" and value != "all"):
+            _set_to_default(config, default_config, path, value, logger)
+    _validate_numeric_range(
+        config,
+        default_config,
+        "retention.marker_context_before_ms",
+        logger,
+        min_val=0,
+        max_val=600000,
+    )
+    _validate_numeric_range(
+        config,
+        default_config,
+        "retention.marker_context_after_ms",
+        logger,
+        min_val=0,
+        max_val=600000,
+    )
+
+    stop_key = _get_config_value_at_path(config, "hotkey.stop_key")
+    auto_send_key = _get_config_value_at_path(config, "hotkey.auto_send_key")
+    recording_hotkey = _get_config_value_at_path(config, "hotkey.recording_hotkey")
+    command_hotkey = _get_config_value_at_path(config, "hotkey.command_hotkey")
     _resolve_hotkey_conflicts(config, default_config, stop_key, auto_send_key, recording_hotkey, command_hotkey, logger)
 
     return config

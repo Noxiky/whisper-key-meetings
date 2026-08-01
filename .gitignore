@@ -30,6 +30,17 @@ MANIFEST
 *.spec
 # Exception: Keep our custom build spec files
 !pyinstaller-build/*.spec
+!WhisperKey.spec
+
+# Local WhisperKey candidates, evidence, and private session recovery
+artifacts/
+recovery/
+preview-library/
+build-next*/
+build-audio-import-candidate/
+dist-previous-*/
+dist-promotion-*/
+dist-audio-import-candidate/
 
 # Installer logs
 pip-log.txt

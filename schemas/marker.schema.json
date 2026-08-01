@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whisperkey.local/schemas/marker.schema.json",
+  "title": "WhisperKey Marker",
+  "type": "object",
+  "required": ["marker_id", "kind", "at_ms", "context_before_ms", "context_after_ms"],
+  "properties": {
+    "marker_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "kind": { "enum": ["question", "not_understood", "important", "investigate", "quote", "disagreement", "action"] },
+    "at_ms": { "type": "integer", "minimum": 0 },
+    "context_before_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+    "context_after_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+    "note": { "type": ["string", "null"], "maxLength": 5000 }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whisperkey.local/schemas/acceptance-report.schema.json",
+  "title": "WhisperKey Windows Acceptance Report",
+  "type": "object",
+  "required": ["schema_version", "report_id", "created_at", "updated_at", "app_version", "environment", "scenarios", "summary"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "report_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "app_version": { "type": "string", "minLength": 1 },
+    "environment": { "type": "object" },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["scenario_id", "gate", "category", "kind", "title", "instructions", "result"],
+        "properties": {
+          "scenario_id": { "type": "string", "pattern": "^p[0-9]+_[a-z0-9_]+$" },
+          "gate": { "type": "string", "pattern": "^P[0-9]+$" },
+          "category": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["manual", "dictation_benchmark"] },
+          "title": { "type": "string", "minLength": 1 },
+          "instructions": { "type": "string", "minLength": 1 },
+          "reference": { "type": "string" },
+          "expected_language": { "enum": ["es", "en", "ru", "mixed"] },
+          "result": {
+            "type": ["object", "null"],
+            "properties": {
+              "status": { "enum": ["pass", "fail", "review", "skipped"] },
+              "recorded_at": { "type": "string", "format": "date-time" },
+              "reviewed_by_user": { "type": "boolean" },
+              "note": { "type": "string" },
+              "evidence": { "type": ["object", "null"] }
+            },
+            "required": ["status", "recorded_at", "reviewed_by_user", "note", "evidence"],
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total", "not_run", "pass", "fail", "review", "skipped"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 1 },
+        "not_run": { "type": "integer", "minimum": 0 },
+        "pass": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "review": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

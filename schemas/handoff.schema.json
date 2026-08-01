@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whisperkey.local/schemas/handoff.schema.json",
+  "title": "WhisperKey Handoff Manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "session_id",
+    "title",
+    "mode",
+    "generated_from_sequence",
+    "generated_at",
+    "privacy",
+    "workflow",
+    "inputs",
+    "attachments",
+    "protected_paths",
+    "output_directory",
+    "constraints"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "title": { "type": ["string", "null"] },
+    "mode": { "enum": ["dictation", "meeting", "learning", "reading", "idea"] },
+    "generated_from_sequence": { "type": "integer", "minimum": 0 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "privacy": {
+      "type": "object",
+      "required": ["uploaded_automatically", "requires_explicit_user_action", "paid_api_required"],
+      "properties": {
+        "uploaded_automatically": { "const": false },
+        "requires_explicit_user_action": { "const": true },
+        "paid_api_required": { "const": false }
+      },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["step", "processor", "input", "output"],
+        "properties": {
+          "step": { "type": "integer", "minimum": 1 },
+          "processor": { "enum": ["nox-learn-anything", "nox-html-learning"] },
+          "input": { "$ref": "#/$defs/relativePath" },
+          "output": { "$ref": "#/$defs/relativePath" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/fileRecord" }
+    },
+    "attachments": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fileRecord" }
+    },
+    "protected_paths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/relativePath" }
+    },
+    "output_directory": { "$ref": "#/$defs/relativePath" },
+    "constraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])[.][.](?:[/\\\\]|$)).+$"
+    },
+    "fileRecord": {
+      "type": "object",
+      "required": ["role", "path", "bytes", "sha256", "protected"],
+      "properties": {
+        "role": {
+          "enum": [
+            "literal",
+            "clean",
+            "markers",
+            "mode_document",
+            "integrity",
+            "session_snapshot",
+            "timeline_snapshot",
+            "speaker_revision",
+            "attachment",
+            "marker_context"
+          ]
+        },
+        "path": { "$ref": "#/$defs/relativePath" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "protected": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

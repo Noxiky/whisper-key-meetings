@@ -28,19 +28,20 @@ ROCM_72_PACKAGES = [
 ]
 
 CT2_WHEEL_URLS = {
-    'amd_rdna2+': f"{_CT2_RDNA2_BASE}/ctranslate2-4.7.1-{_PY_TAG}-{_PY_TAG}-win_amd64.whl",
+    "amd_rdna2+": f"{_CT2_RDNA2_BASE}/ctranslate2-4.7.1-{_PY_TAG}-{_PY_TAG}-win_amd64.whl",
 }
 
 RDNA1_SETUP_URL = "https://github.com/PinW/ctranslate2-rocm-rdna1"
 
 GPU_SIZES = {
-    'nvidia': {'download': '1.2 GB', 'disk': '1.8 GB'},
-    'amd_rdna2+': {'download': '1.1 GB', 'disk': '3.3 GB'},
+    "nvidia": {"download": "1.2 GB", "disk": "1.8 GB"},
+    "amd_rdna2+": {"download": "1.1 GB", "disk": "3.3 GB"},
 }
 
 
 def handle_gpu_failure(error, config_manager):
     import logging
+
     logging.getLogger(__name__).error(f"GPU model load failed: {error}")
     print(f"\n{BOLD_RED}GPU acceleration failed:{RESET} {error}\n")
 
@@ -53,7 +54,7 @@ def handle_gpu_failure(error, config_manager):
     )
 
     if choice == INSTALL_GPU:
-        config_manager.update_user_setting('onboarding', 'gpu', 'pending')
+        config_manager.update_user_setting("onboarding", "gpu", "pending")
         restart_or_exit(
             f"\n{BOLD_GREEN}Restarting for GPU setup...{RESET}\n",
             f"\n{BOLD_GREEN}Please restart Whisper Key to re-run GPU setup.{RESET}\n",
@@ -64,19 +65,19 @@ def handle_gpu_failure(error, config_manager):
 
 def check_gpu(gpu_class, gpu_name, ct2_works, configured_device, config_manager):
     if not gpu_class:
-        config_manager.update_user_setting('onboarding', 'gpu', 'no_gpu')
+        config_manager.update_user_setting("onboarding", "gpu", "no_gpu")
         return
 
-    if ct2_works and configured_device == 'cuda':
-        config_manager.update_user_setting('onboarding', 'gpu_class', gpu_class)
-        config_manager.update_user_setting('onboarding', 'gpu', 'complete')
+    if ct2_works and configured_device == "cuda":
+        config_manager.update_user_setting("onboarding", "gpu_class", gpu_class)
+        config_manager.update_user_setting("onboarding", "gpu", "complete")
         return
 
     if ct2_works:
         _prompt_enable_manually_installed_gpu(gpu_class, gpu_name, config_manager)
         return
 
-    if gpu_class == 'amd_rdna1':
+    if gpu_class == "amd_rdna1":
         _prompt_rdna1(gpu_name, config_manager)
         return
 
@@ -84,8 +85,8 @@ def check_gpu(gpu_class, gpu_name, ct2_works, configured_device, config_manager)
 
 
 RUNTIME_LABELS = {
-    'nvidia': 'CUDA',
-    'amd_rdna2+': 'ROCm 7.2',
+    "nvidia": "CUDA",
+    "amd_rdna2+": "ROCm 7.2",
 }
 
 
@@ -93,18 +94,9 @@ def _prompt_enable_manually_installed_gpu(gpu_class, gpu_name, config_manager):
     choice = prompt_choice(
         "GPU acceleration available",
         [
-            (
-                "Enable GPU in config",
-                "Use manually installed GPU setup"
-            ),
-            (
-                "Skip for now",
-                "Use CPU this session"
-            ),
-            (
-                "Use CPU only",
-                "Don't ask again"
-            ),
+            ("Enable GPU in config", "Use manually installed GPU setup"),
+            ("Skip for now", "Use CPU this session"),
+            ("Use CPU only", "Don't ask again"),
         ],
         subtitle=f"Use {gpu_name} for fast transcription?",
     )
@@ -112,36 +104,27 @@ def _prompt_enable_manually_installed_gpu(gpu_class, gpu_name, config_manager):
     print()
 
     if choice == INSTALL_GPU:
-        config_manager.update_user_setting('whisper', 'device', 'cuda')
-        config_manager.update_user_setting('whisper', 'compute_type', 'float16')
-        config_manager.update_user_setting('onboarding', 'gpu_class', gpu_class)
-        config_manager.update_user_setting('onboarding', 'gpu', 'complete')
+        config_manager.update_user_setting("whisper", "device", "cuda")
+        config_manager.update_user_setting("whisper", "compute_type", "float16")
+        config_manager.update_user_setting("onboarding", "gpu_class", gpu_class)
+        config_manager.update_user_setting("onboarding", "gpu", "complete")
         print(f"{BOLD_GREEN}GPU acceleration enabled.{RESET}\n")
     elif choice == NEVER_ASK:
         _ensure_cpu_config(config_manager)
-        config_manager.update_user_setting('onboarding', 'gpu_class', gpu_class)
-        config_manager.update_user_setting('onboarding', 'gpu', 'skipped')
+        config_manager.update_user_setting("onboarding", "gpu_class", gpu_class)
+        config_manager.update_user_setting("onboarding", "gpu", "skipped")
 
 
 def _prompt_and_install(gpu_class, gpu_name, config_manager):
-    sizes = GPU_SIZES.get(gpu_class, {'download': '1 GB', 'disk': '1 GB'})
-    runtime = RUNTIME_LABELS.get(gpu_class, 'GPU')
+    sizes = GPU_SIZES.get(gpu_class, {"download": "1 GB", "disk": "1 GB"})
+    runtime = RUNTIME_LABELS.get(gpu_class, "GPU")
 
     choice = prompt_choice(
         "GPU acceleration available",
         [
-            (
-                f"Setup GPU, install {runtime}",
-                f"{sizes['download']} download, {sizes['disk']} disk space"
-            ),
-            (
-                "Skip for now",
-                "Use CPU this session"
-            ),
-            (
-                "Use CPU only",
-                "Don't ask again"
-            ),
+            (f"Setup GPU, install {runtime}", f"{sizes['download']} download, {sizes['disk']} disk space"),
+            ("Skip for now", "Use CPU this session"),
+            ("Use CPU only", "Don't ask again"),
         ],
         subtitle=f"Use {gpu_name} for fast transcription?",
     )
@@ -152,26 +135,26 @@ def _prompt_and_install(gpu_class, gpu_name, config_manager):
         _install_gpu_packages(gpu_class, gpu_name, config_manager)
     elif choice == NEVER_ASK:
         _ensure_cpu_config(config_manager)
-        config_manager.update_user_setting('onboarding', 'gpu_class', gpu_class)
-        config_manager.update_user_setting('onboarding', 'gpu', 'skipped')
+        config_manager.update_user_setting("onboarding", "gpu_class", gpu_class)
+        config_manager.update_user_setting("onboarding", "gpu", "skipped")
     else:
         _ensure_cpu_config(config_manager)
 
 
 def _ensure_cpu_config(config_manager):
-    config_manager.update_user_setting('whisper', 'device', 'cpu')
-    config_manager.update_user_setting('whisper', 'compute_type', 'int8')
+    config_manager.update_user_setting("whisper", "device", "cpu")
+    config_manager.update_user_setting("whisper", "compute_type", "int8")
 
 
 def _install_gpu_packages(gpu_class, gpu_name, config_manager):
-    runtime = RUNTIME_LABELS.get(gpu_class, 'GPU')
+    runtime = RUNTIME_LABELS.get(gpu_class, "GPU")
     print(f"{BOLD_GREEN}Installing {runtime} to enable GPU acceleration for {gpu_name}...{RESET}\n")
 
     success = True
 
-    if gpu_class == 'nvidia':
+    if gpu_class == "nvidia":
         success = _pip_install(NVIDIA_PACKAGES)
-    elif gpu_class == 'amd_rdna2+':
+    elif gpu_class == "amd_rdna2+":
         success = _pip_install(ROCM_72_PACKAGES)
         if success:
             ct2_url = get_ct2_wheel_url(gpu_class)
@@ -185,8 +168,8 @@ def _install_gpu_packages(gpu_class, gpu_name, config_manager):
         print(f"\n{BOLD_RED}GPU setup failed. You'll be prompted again next launch.{RESET}\n")
         return
 
-    config_manager.update_user_setting('whisper', 'device', 'cuda')
-    config_manager.update_user_setting('whisper', 'compute_type', 'float16')
+    config_manager.update_user_setting("whisper", "device", "cuda")
+    config_manager.update_user_setting("whisper", "compute_type", "float16")
 
     restart_or_exit(
         f"\n{BOLD_GREEN}GPU acceleration installed. Restarting...{RESET}\n",
@@ -198,18 +181,9 @@ def _prompt_rdna1(gpu_name, config_manager):
     choice = prompt_choice(
         "GPU acceleration available",
         [
-            (
-                "Open setup guide in browser",
-                "RDNA 1 GPUs require manual setup"
-            ),
-            (
-                "Skip for now",
-                "Use CPU transcription for this session"
-            ),
-            (
-                "Use CPU only",
-                "Don't ask again"
-            ),
+            ("Open setup guide in browser", "RDNA 1 GPUs require manual setup"),
+            ("Skip for now", "Use CPU transcription for this session"),
+            ("Use CPU only", "Don't ask again"),
         ],
         subtitle=f"Use {gpu_name} for fast transcription?",
     )
@@ -225,8 +199,8 @@ def _prompt_rdna1(gpu_name, config_manager):
         sys.exit(0)
     elif choice == NEVER_ASK:
         _ensure_cpu_config(config_manager)
-        config_manager.update_user_setting('onboarding', 'gpu_class', 'amd_rdna1')
-        config_manager.update_user_setting('onboarding', 'gpu', 'skipped')
+        config_manager.update_user_setting("onboarding", "gpu_class", "amd_rdna1")
+        config_manager.update_user_setting("onboarding", "gpu", "skipped")
     else:
         _ensure_cpu_config(config_manager)
 
@@ -240,13 +214,9 @@ def _pip_install(packages):
 
 def _pip_install_wheel(url):
     print("   Installing GPU-optimized CTranslate2...")
-    result = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "--force-reinstall", "--no-deps", url]
-    )
+    result = subprocess.run([sys.executable, "-m", "pip", "install", "--force-reinstall", "--no-deps", url])
     return result.returncode == 0
 
 
 def get_ct2_wheel_url(gpu_class):
     return CT2_WHEEL_URLS.get(gpu_class)
-
-

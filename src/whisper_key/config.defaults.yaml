@@ -31,7 +31,7 @@ whisper: # Whisper AI Model Settings
     beam_size: 5 # Higher = more accurate but slower (1-10)
 
     # Initial prompt to guide transcription style, language variant, or script
-    initial_prompt: "Dictation may be in English, Spanish, or Russian. Preserve the spoken language and punctuation naturally."
+    initial_prompt: "Transcribe exactly in the language spoken; never translate. Español → español. English → English. Русский → русский кириллицей. Preserve natural code-switching."
 
     # Custom hotwords — words the model should favor during transcription
     # Useful for names, technical terms, or domain-specific vocabulary
@@ -191,9 +191,23 @@ capture: # Capture Mode Settings
         # Example: "LS32DG30X" or "Razer" or "Oculus"
         # When recording fails to pick up audio, set this to the device actually playing the audio
         system_audio_device: default
+        # If a USB/Bluetooth/default route disappears mid-session, keep the other source alive
+        # and retry this source without closing the session. The delay backs off to the maximum.
+        device_reconnect_initial_seconds: 1.0
+        device_reconnect_max_seconds: 8.0
         # Auto-stop the meeting after this many seconds of no audio detected on any source.
         # 0 disables auto-stop.
         auto_stop_silence_seconds: 120
+
+retention: # Durable session audio retention
+    # Defaults for newly created sessions. Existing sessions retain their own policy.
+    dictation: all
+    meeting: all
+    learning: all
+    reading: all
+    idea: all
+    marker_context_before_ms: 30000
+    marker_context_after_ms: 30000
 
 vad: # Voice Activity Detection (VAD)
     # Voice Activity Detection (VAD) Pre-check
@@ -230,9 +244,9 @@ audio: # Audio Recording Settings
     # float32 recommended for best quality
     dtype: float32
 
-    # Maximum recording duration (seconds)
-    # Set to 0 for unlimited recording
-    max_duration: 900
+    # Maximum recording duration (seconds). Dictation is unlimited by default and stops through
+    # the 30-second VAD silence timeout above; set a positive value only as an explicit safety cap.
+    max_duration: 0
 
     # Audio input device selection
     # "default" = Use system default microphone (default behavior)
@@ -241,6 +255,9 @@ audio: # Audio Recording Settings
     # Note: Device IDs are assigned by the operating system and may change if devices
     # are plugged/unplugged. Use system tray to select device - it will save the ID here.
     input_device: "default"
+    # The new UI stores the exact diagnosed name with the numeric ID. It is used to find the same
+    # microphone if Windows assigns it a different ID after reconnect/restart.
+    input_device_name: null
 
 clipboard: # Clipboard Behavior
     # Automatically paste after transcription

@@ -56,27 +56,57 @@ class INPUT(ctypes.Structure):
 
 
 VK_MAP = {
-    "enter": VK_RETURN, "return": VK_RETURN,
+    "enter": VK_RETURN,
+    "return": VK_RETURN,
     "tab": VK_TAB,
-    "backspace": 0x08, "delete": 0x2E, "escape": 0x1B, "esc": 0x1B,
+    "backspace": 0x08,
+    "delete": 0x2E,
+    "escape": 0x1B,
+    "esc": 0x1B,
     "space": 0x20,
-    "up": 0x26, "down": 0x28, "left": 0x25, "right": 0x27,
-    "home": 0x24, "end": 0x23, "pageup": 0x21, "pagedown": 0x22,
+    "up": 0x26,
+    "down": 0x28,
+    "left": 0x25,
+    "right": 0x27,
+    "home": 0x24,
+    "end": 0x23,
+    "pageup": 0x21,
+    "pagedown": 0x22,
     "insert": 0x2D,
-    "ctrl": 0xA2, "control": 0xA2, "lctrl": 0xA2, "rctrl": 0xA3,
-    "shift": 0xA0, "lshift": 0xA0, "rshift": 0xA1,
-    "alt": 0xA4, "lalt": 0xA4, "ralt": 0xA5,
-    "win": 0x5B, "lwin": 0x5B, "rwin": 0x5C,
-    "cmd": 0x5B, "command": 0x5B,
-    "f1": 0x70, "f2": 0x71, "f3": 0x72, "f4": 0x73,
-    "f5": 0x74, "f6": 0x75, "f7": 0x76, "f8": 0x77,
-    "f9": 0x78, "f10": 0x79, "f11": 0x7A, "f12": 0x7B,
+    "ctrl": 0xA2,
+    "control": 0xA2,
+    "lctrl": 0xA2,
+    "rctrl": 0xA3,
+    "shift": 0xA0,
+    "lshift": 0xA0,
+    "rshift": 0xA1,
+    "alt": 0xA4,
+    "lalt": 0xA4,
+    "ralt": 0xA5,
+    "win": 0x5B,
+    "lwin": 0x5B,
+    "rwin": 0x5C,
+    "cmd": 0x5B,
+    "command": 0x5B,
+    "f1": 0x70,
+    "f2": 0x71,
+    "f3": 0x72,
+    "f4": 0x73,
+    "f5": 0x74,
+    "f6": 0x75,
+    "f7": 0x76,
+    "f8": 0x77,
+    "f9": 0x78,
+    "f10": 0x79,
+    "f11": 0x7A,
+    "f12": 0x7B,
 }
 
 for c in "abcdefghijklmnopqrstuvwxyz":
     VK_MAP[c] = ord(c.upper())
 for d in "0123456789":
     VK_MAP[d] = ord(d)
+
 
 def _make_vk_input(vk, flags=0):
     inp = INPUT()

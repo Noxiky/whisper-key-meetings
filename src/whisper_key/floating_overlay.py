@@ -1,7 +1,8 @@
 import logging
 import queue
 import threading
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 
 class FloatingOverlay:
@@ -12,18 +13,20 @@ class FloatingOverlay:
     glance whether Whisper Key is idle, recording, or processing.
     """
 
-    def __init__(self,
-                 icons: dict[str, Any],
-                 animated_icons: dict[str, list[Any]],
-                 on_close: Optional[Callable[[], None]] = None,
-                 logger: Optional[logging.Logger] = None):
+    def __init__(
+        self,
+        icons: dict[str, Any],
+        animated_icons: dict[str, list[Any]],
+        on_close: Callable[[], None] | None = None,
+        logger: logging.Logger | None = None,
+    ):
         self.icons = icons
         self.animated_icons = animated_icons
         self.on_close = on_close
         self.logger = logger or logging.getLogger(__name__)
 
-        self._thread: Optional[threading.Thread] = None
-        self._queue: queue.Queue[tuple[str, Optional[str]]] = queue.Queue()
+        self._thread: threading.Thread | None = None
+        self._queue: queue.Queue[tuple[str, str | None]] = queue.Queue()
         self._running = False
 
     def start(self) -> bool:
@@ -49,6 +52,7 @@ class FloatingOverlay:
     def _run(self):
         try:
             import tkinter as tk
+
             from PIL import Image, ImageTk
         except Exception as exc:
             self._running = False
@@ -158,8 +162,9 @@ class FloatingOverlay:
                 if action == "stop":
                     try:
                         root.destroy()
-                    finally:
-                        return
+                    except Exception as exc:
+                        self.logger.debug("Floating overlay was already closed: %s", exc)
+                    return
                 if action == "state" and value:
                     current_state = value if value in photo_cache else "idle"
                     frame_index = 0
